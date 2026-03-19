@@ -40,6 +40,7 @@
                                list="jobs-clients-datalist"
                                class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         <datalist id="jobs-clients-datalist"></datalist>
+                        <p id="job-client-hint" class="mt-1 text-[11px] text-slate-400"></p>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 mb-1">Adresse / Lieu</label>
@@ -61,6 +62,18 @@
                             <label class="block text-xs font-semibold text-slate-500 mb-1">Date</label>
                             <input id="job-date" type="date"
                                    class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Montant reçu</label>
+                            <input id="job-amount-paid" type="number" step="0.01" placeholder="0.00"
+                                   class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Reste à encaisser</label>
+                            <input id="job-amount-remaining" type="number" step="0.01" placeholder="0.00" readonly
+                                   class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 text-slate-700">
                         </div>
                     </div>
                     <div>
@@ -101,8 +114,9 @@
                             <th class="py-2 px-2 md:px-3">Date</th>
                             <th class="py-2 px-2 md:px-3">Client</th>
                             <th class="py-2 px-2 md:px-3 hidden md:table-cell">Service</th>
-                            <th class="py-2 px-2 md:px-3 text-right">Prix</th>
-                            <th class="py-2 px-2 md:px-3 hidden md:table-cell">Statut</th>
+                            <th class="py-2 px-2 md:px-3 text-right">Total</th>
+                            <th class="py-2 px-2 md:px-3 text-right hidden md:table-cell">Reçu</th>
+                            <th class="py-2 px-2 md:px-3 text-right hidden md:table-cell">Reste</th>
                         </tr>
                     </thead>
                     <tbody id="jobs-table" class="divide-y divide-slate-100 text-slate-700">
@@ -143,7 +157,8 @@
                     <td class="py-2 px-2 md:px-3">${job.client || ''}</td>
                     <td class="py-2 px-2 md:px-3 hidden md:table-cell">${job.service || ''}</td>
                     <td class="py-2 px-2 md:px-3 text-right">${Number(job.price || 0).toFixed(2)}</td>
-                    <td class="py-2 px-2 md:px-3 hidden md:table-cell">${job.status || ''}</td>
+                    <td class="py-2 px-2 md:px-3 text-right hidden md:table-cell">${Number(job.amountPaid || 0).toFixed(2)}</td>
+                    <td class="py-2 px-2 md:px-3 text-right hidden md:table-cell">${Number((job.price || 0) - (job.amountPaid || 0)).toFixed(2)}</td>
                 `;
                 tr.addEventListener('click', () => loadJobIntoForm(job.id));
                 tbody.appendChild(tr);
@@ -159,6 +174,10 @@
             document.getElementById('job-date').value = '';
             document.getElementById('job-status').value = 'planned';
             document.getElementById('job-notes').value = '';
+            document.getElementById('job-amount-paid').value = '';
+            document.getElementById('job-amount-remaining').value = '';
+            const hint = document.getElementById('job-client-hint');
+            if (hint) hint.textContent = '';
         }
 
         function loadJobIntoForm(id) {
@@ -172,6 +191,9 @@
             document.getElementById('job-date').value = job.date || '';
             document.getElementById('job-status').value = job.status || 'planned';
             document.getElementById('job-notes').value = job.notes || '';
+            document.getElementById('job-amount-paid').value = job.amountPaid || '';
+            document.getElementById('job-amount-remaining').value = ((job.price || 0) - (job.amountPaid || 0)).toFixed(2);
+            updateJobClientHint();
         }
 
         async function saveJob() {
@@ -187,13 +209,14 @@
             const date = document.getElementById('job-date').value || '';
             const status = document.getElementById('job-status').value || 'planned';
             const notes = document.getElementById('job-notes').value.trim();
+            const amountPaid = parseFloat(document.getElementById('job-amount-paid').value || '0');
 
             if (!client || !service) {
                 alert('Client et service sont obligatoires.');
                 return;
             }
 
-            const job = { id, client, location, service, price, date, status, notes };
+            const job = { id, client, location, service, price, date, status, notes, amountPaid };
             const existingIndex = jobs.findIndex(j => j.id === id);
             if (existingIndex >= 0) {
                 jobs[existingIndex] = job;
@@ -265,6 +288,30 @@
             attachJobsListener();
         }
 
+        function updateJobClientHint() {
+            const input = document.getElementById('job-client');
+            const hint = document.getElementById('job-client-hint');
+            if (!input || !hint) return;
+
+            const name = input.value.trim().toLowerCase();
+            if (!name) {
+                hint.textContent = '';
+                return;
+            }
+
+            const existing = jobsClients.find(c => (c.name || '').toLowerCase() === name);
+            if (existing) {
+                hint.textContent = 'Client existant (issu de la liste Clients).';
+                // Auto-remplir lieu si vide
+                const locInput = document.getElementById('job-location');
+                if (locInput && !locInput.value.trim() && existing.address) {
+                    locInput.value = existing.address;
+                }
+            } else {
+                hint.textContent = 'Nouveau client (spécifique à ce travail).';
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
             if (!firebase.apps.length) {
                 firebase.initializeApp(firebaseConfig);
@@ -273,6 +320,26 @@
             db = firebase.firestore();
 
             auth.onAuthStateChanged(handleAuthStateChanged);
+            const clientInput = document.getElementById('job-client');
+            if (clientInput) {
+                clientInput.addEventListener('input', () => {
+                    updateJobClientHint();
+                });
+            }
+
+            const priceInput = document.getElementById('job-price');
+            const paidInput = document.getElementById('job-amount-paid');
+            if (priceInput && paidInput) {
+                const recalc = () => {
+                    const price = parseFloat(priceInput.value || '0');
+                    const paid = parseFloat(paidInput.value || '0');
+                    const remaining = price - paid;
+                    const remInput = document.getElementById('job-amount-remaining');
+                    if (remInput) remInput.value = remaining.toFixed(2);
+                };
+                priceInput.addEventListener('input', recalc);
+                paidInput.addEventListener('input', recalc);
+            }
         });
     </script>
 </body>
