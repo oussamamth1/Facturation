@@ -11,16 +11,75 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <style>
         @media print {
-            .no-print { display: none; }
-            body { background: white; padding: 0; }
-            .invoice-box { box-shadow: none; border: none; width: 100%; }
-            input, textarea, select { border: none !important; outline: none !important; }
+            @page {
+                size: A4;
+                margin: 10mm;
+            }
+
+            html, body {
+                width: 210mm;
+                height: 297mm;
+                background: white;
+                padding: 0;
+            }
+
+            .no-print { display: none !important; }
+
+            /* Focus print on the invoice itself */
+            body > div:first-of-type {
+                margin: 0;
+                max-width: 100%;
+            }
+
+            .invoice-box {
+                box-shadow: none;
+                border: none;
+                width: 100%;
+                /* Slight global scale to help keep content on a single page */
+                transform: scale(0.9);
+                transform-origin: top left;
+            }
+
+            input, textarea, select {
+                border: none !important;
+                outline: none !important;
+            }
         }
     </style>
 </head>
 <body class="bg-slate-100 min-h-screen p-4 md:p-10">
 
-    <div class="max-w-6xl mx-auto">
+    <!-- Auth bar -->
+    <div class="max-w-6xl mx-auto mb-4 no-print">
+        <div class="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 shadow-sm">
+            <div>
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Compte</p>
+                <p id="auth-user-label" class="text-sm text-slate-700 mt-1">Non connecté</p>
+            </div>
+            <div class="flex-1 md:flex md:items-end md:justify-end gap-3">
+                <div id="auth-form" class="flex flex-col md:flex-row gap-2 items-stretch md:items-center">
+                    <input id="auth-email" type="email" placeholder="Email"
+                           class="border border-slate-200 rounded-lg px-3 py-2 text-xs md:text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full md:w-52">
+                    <input id="auth-password" type="password" placeholder="Mot de passe"
+                           class="border border-slate-200 rounded-lg px-3 py-2 text-xs md:text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full md:w-40">
+                    <button onclick="registerWithEmail()"
+                            class="bg-emerald-500 hover:bg-emerald-600 text-white text-xs md:text-sm font-semibold px-3 py-2 rounded-lg shadow-sm">
+                        Créer un compte
+                    </button>
+                    <button onclick="loginWithEmail()"
+                            class="bg-slate-900 hover:bg-black text-white text-xs md:text-sm font-semibold px-3 py-2 rounded-lg shadow-sm">
+                        Se connecter
+                    </button>
+                </div>
+                <button id="logout-btn" onclick="logoutUser()"
+                        class="hidden bg-red-500 hover:bg-red-600 text-white text-xs md:text-sm font-semibold px-3 py-2 rounded-lg shadow-sm">
+                    Se déconnecter
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-shell" class="max-w-6xl mx-auto opacity-40 pointer-events-none transition-opacity duration-200">
         <!-- App Header -->
         <header class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div class="flex items-center gap-4">
@@ -366,6 +425,13 @@
         let clients = [];
         let products = [];
         let invoices = [];
+        let currentUser = null;
+        let currentUserId = null;
+
+        let unsubscribeSettings = null;
+        let unsubscribeClients = null;
+        let unsubscribeProducts = null;
+        let unsubscribeInvoices = null;
 
         // --- Firebase (Firestore + Anonymous Auth) ---
         // IMPORTANT: Replace these values with your Firebase project config.
@@ -396,42 +462,103 @@
             auth = firebase.auth();
             db = firebase.firestore();
 
-            // Anonymous login (your choice)
-            if (!auth.currentUser) {
-                await auth.signInAnonymously();
+            // Email/password auth; listen to user changes
+            auth.onAuthStateChanged(handleAuthStateChanged);
+        }
+
+        function clearUserState() {
+            clients = [];
+            products = [];
+            invoices = [];
+            renderClientsTable();
+            renderProductsTable();
+            updateDashboardStats();
+            renderInvoiceClientOptions();
+        }
+
+        function detachUserListeners() {
+            if (unsubscribeSettings) unsubscribeSettings();
+            if (unsubscribeClients) unsubscribeClients();
+            if (unsubscribeProducts) unsubscribeProducts();
+            if (unsubscribeInvoices) unsubscribeInvoices();
+            unsubscribeSettings = unsubscribeClients = unsubscribeProducts = unsubscribeInvoices = null;
+        }
+
+        function handleAuthStateChanged(user) {
+            currentUser = user;
+            currentUserId = user ? user.uid : null;
+
+            const appShell = document.getElementById('app-shell');
+            const userLabel = document.getElementById('auth-user-label');
+            const authForm = document.getElementById('auth-form');
+            const logoutBtn = document.getElementById('logout-btn');
+
+            detachUserListeners();
+            clearUserState();
+
+            if (!user) {
+                if (appShell) {
+                    appShell.classList.add('opacity-40', 'pointer-events-none');
+                }
+                if (userLabel) userLabel.textContent = 'Non connecté';
+                if (authForm) authForm.classList.remove('hidden');
+                if (logoutBtn) logoutBtn.classList.add('hidden');
+                document.getElementById('invoice-number-label').textContent = '-';
+                return;
             }
 
-            // Live settings (enterprise)
-            db.collection('settings').doc('enterprise').onSnapshot(snap => {
-                const ent = snap.exists ? snap.data() : null;
-                if (!ent) return;
-                document.getElementById('ent-name').value = ent.name || '';
-                document.getElementById('ent-details').value = ent.details || '';
-            }, err => console.error('Firestore settings listener error', err));
+            if (appShell) {
+                appShell.classList.remove('opacity-40', 'pointer-events-none');
+            }
+            if (userLabel) userLabel.textContent = user.email || '(Utilisateur sans email)';
+            if (authForm) authForm.classList.add('hidden');
+            if (logoutBtn) logoutBtn.classList.remove('hidden');
 
-            // Live clients
-            db.collection('clients').onSnapshot(snap => {
-                clients = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                renderClientsTable();
-            }, err => console.error('Firestore clients listener error', err));
+            attachUserListeners();
+        }
 
-            // Live products
-            db.collection('products').onSnapshot(snap => {
-                products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                renderProductsTable();
-            }, err => console.error('Firestore products listener error', err));
+        function attachUserListeners() {
+            if (!db || !currentUserId) return;
 
-            // Live invoices (newest first)
-            db.collection('invoices').onSnapshot(snap => {
-                invoices = snap.docs
-                    .map(d => ({ id: d.id, ...d.data() }))
-                    .sort((a, b) => {
-                        const av = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt || 0);
-                        const bv = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt || 0);
-                        return bv - av;
-                    });
-                updateDashboardStats();
-            }, err => console.error('Firestore invoices listener error', err));
+            // Enterprise settings per user
+            unsubscribeSettings = db.collection('settings')
+                .doc(`enterprise_${currentUserId}`)
+                .onSnapshot(snap => {
+                    const ent = snap.exists ? snap.data() : null;
+                    if (!ent) return;
+                    document.getElementById('ent-name').value = ent.name || '';
+                    document.getElementById('ent-details').value = ent.details || '';
+                }, err => console.error('Firestore settings listener error', err));
+
+            // Clients for this user
+            unsubscribeClients = db.collection('clients')
+                .where('userId', '==', currentUserId)
+                .onSnapshot(snap => {
+                    clients = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    renderClientsTable();
+                }, err => console.error('Firestore clients listener error', err));
+
+            // Products for this user
+            unsubscribeProducts = db.collection('products')
+                .where('userId', '==', currentUserId)
+                .onSnapshot(snap => {
+                    products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    renderProductsTable();
+                }, err => console.error('Firestore products listener error', err));
+
+            // Invoices for this user (sorted newest first client-side)
+            unsubscribeInvoices = db.collection('invoices')
+                .where('userId', '==', currentUserId)
+                .onSnapshot(snap => {
+                    invoices = snap.docs
+                        .map(d => ({ id: d.id, ...d.data() }))
+                        .sort((a, b) => {
+                            const av = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt || 0);
+                            const bv = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt || 0);
+                            return bv - av;
+                        });
+                    updateDashboardStats();
+                }, err => console.error('Firestore invoices listener error', err));
         }
 
         function renderProductsDatalist() {
@@ -453,13 +580,14 @@
         }
 
         function saveEnterprise() {
-            if (!db) return;
+            if (!db || !currentUserId) return;
             const data = {
                 name: document.getElementById('ent-name').value.trim(),
                 details: document.getElementById('ent-details').value.trim(),
+                userId: currentUserId,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
             };
-            db.collection('settings').doc('enterprise').set(data, { merge: true }).catch(err => {
+            db.collection('settings').doc(`enterprise_${currentUserId}`).set(data, { merge: true }).catch(err => {
                 console.error('saveEnterprise failed', err);
             });
         }
@@ -547,7 +675,7 @@
                 clients.push(client);
             }
 
-            if (!db) {
+            if (!db || !currentUserId) {
                 alert('Firebase non prêt. Attendez quelques secondes puis réessayez.');
                 return;
             }
@@ -555,6 +683,7 @@
             // Persist client in Firestore (create/update).
             db.collection('clients').doc(id).set({
                 ...client,
+                userId: currentUserId,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
             }, { merge: true }).catch(err => console.error('saveClient failed', err));
@@ -637,7 +766,7 @@
                 products.push(product);
             }
 
-            if (!db) {
+            if (!db || !currentUserId) {
                 alert('Firebase non prêt. Attendez quelques secondes puis réessayez.');
                 return;
             }
@@ -645,6 +774,7 @@
             // Persist product in Firestore (create/update).
             db.collection('products').doc(id).set({
                 ...product,
+                userId: currentUserId,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
             }, { merge: true }).catch(err => console.error('saveProduct failed', err));
@@ -846,7 +976,7 @@
                 notes: document.getElementById('invoice-notes').value || '',
             };
 
-            if (!db) {
+            if (!db || !currentUserId) {
                 alert('Firebase non prêt. Attendez quelques secondes puis réessayez.');
                 return;
             }
@@ -858,6 +988,7 @@
 
             db.collection('invoices').doc(invoice.id).set({
                 ...invoice,
+                userId: currentUserId,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
             }, { merge: true }).catch(err => console.error('saveInvoice failed', err));
@@ -918,6 +1049,54 @@
 
             const url = 'https://wa.me/' + encodeURIComponent(phone) + '?text=' + encodeURIComponent(message);
             window.open(url, '_blank');
+        }
+
+        // --- Auth (email / password) ---
+        async function registerWithEmail() {
+            if (!auth) {
+                alert('Firebase non prêt. Rechargez la page.');
+                return;
+            }
+            const email = document.getElementById('auth-email').value.trim();
+            const password = document.getElementById('auth-password').value;
+            if (!email || !password) {
+                alert('Email et mot de passe sont obligatoires.');
+                return;
+            }
+            try {
+                await auth.createUserWithEmailAndPassword(email, password);
+            } catch (err) {
+                console.error('registerWithEmail failed', err);
+                alert(err.message || 'Erreur lors de la création du compte.');
+            }
+        }
+
+        async function loginWithEmail() {
+            if (!auth) {
+                alert('Firebase non prêt. Rechargez la page.');
+                return;
+            }
+            const email = document.getElementById('auth-email').value.trim();
+            const password = document.getElementById('auth-password').value;
+            if (!email || !password) {
+                alert('Email et mot de passe sont obligatoires.');
+                return;
+            }
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+            } catch (err) {
+                console.error('loginWithEmail failed', err);
+                alert(err.message || 'Erreur lors de la connexion.');
+            }
+        }
+
+        async function logoutUser() {
+            if (!auth) return;
+            try {
+                await auth.signOut();
+            } catch (err) {
+                console.error('logoutUser failed', err);
+            }
         }
 
         // --- Event bindings & initialisation ---
