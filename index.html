@@ -23,21 +23,38 @@
                 padding: 0;
             }
 
-            .no-print { display: none !important; }
+            /* Hide all UI elements that are not part of the invoice */
+            .no-print,
+            #auth-bar,
+            nav,
+            #tab-dashboard,
+            #tab-clients,
+            #tab-products,
+            #tab-invoices {
+                display: none !important;
+            }
 
-            /* Focus print on the invoice itself */
-            body > div:first-of-type {
+            /* Only show the invoice tab content */
+            #tab-invoice {
+                display: block !important;
+            }
+
+            body > #app-shell {
                 margin: 0;
-                max-width: 100%;
+                max-width: 190mm;
             }
 
             .invoice-box {
                 box-shadow: none;
                 border: none;
                 width: 100%;
-                /* Slight global scale to help keep content on a single page */
-                transform: scale(0.9);
-                transform-origin: top left;
+            }
+
+            /* Avoid breaking totals/signature across pages */
+            .invoice-box,
+            .invoice-box table,
+            .invoice-box textarea {
+                page-break-inside: avoid;
             }
 
             input, textarea, select {
@@ -153,30 +170,63 @@
         <!-- Dashboard tab -->
         <section id="tab-dashboard" class="tab-panel">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Clients</p>
-                    <p class="text-3xl font-extrabold text-slate-900" id="stat-clients">0</p>
-                    <p class="text-xs text-slate-500 mt-1">Nombre de clients enregistrés</p>
+                <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-sky-500 to-sky-600 text-white shadow-lg">
+                    <div class="absolute right-4 top-4 opacity-20">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M15 14C17.7614 14 20 11.7614 20 9C20 6.23858 17.7614 4 15 4C12.2386 4 10 6.23858 10 9C10 11.7614 12.2386 14 15 14Z"/>
+                            <path d="M4 18C4 15.7909 7.58172 14 11.5 14C12.593 14 13.6239 14.1177 14.5556 14.3339C13.1665 15.3736 12.25 17.0723 12.25 19H4Z"/>
+                        </svg>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-[11px] font-semibold uppercase tracking-wide text-sky-100/80">Clients</p>
+                        <p class="mt-1 text-3xl font-extrabold" id="stat-clients">0</p>
+                        <p class="mt-1 text-xs text-sky-50/90">Nombre de clients enregistrés</p>
+                    </div>
                 </div>
-                <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Produits</p>
-                    <p class="text-3xl font-extrabold text-slate-900" id="stat-products">0</p>
-                    <p class="text-xs text-slate-500 mt-1">Articles disponibles</p>
+
+                <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-lg">
+                    <div class="absolute right-4 top-4 opacity-20">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M4 6H20V8H4V6Z"/><path d="M4 11H20V13H4V11Z"/><path d="M4 16H13V18H4V16Z"/>
+                        </svg>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-[11px] font-semibold uppercase tracking-wide text-emerald-100/80">Produits</p>
+                        <p class="mt-1 text-3xl font-extrabold" id="stat-products">0</p>
+                        <p class="mt-1 text-xs text-emerald-50/90">Articles disponibles</p>
+                    </div>
                 </div>
-                <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Factures</p>
-                    <p class="text-3xl font-extrabold text-slate-900" id="stat-invoices">0</p>
-                    <p class="text-xs text-slate-500 mt-1">Factures sauvegardées (local)</p>
+
+                <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-lg">
+                    <div class="absolute right-4 top-4 opacity-20">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M7 3H17C18.1046 3 19 3.89543 19 5V19C19 20.1046 18.1046 21 17 21H7C5.89543 21 5 20.1046 5 19V5C5 3.89543 5.89543 3 7 3Z"/>
+                            <path d="M9 8H15V10H9V8Z" fill="#EEF2FF"/>
+                            <path d="M9 12H13V14H9V12Z" fill="#EEF2FF"/>
+                        </svg>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-[11px] font-semibold uppercase tracking-wide text-indigo-100/80">Factures</p>
+                        <p class="mt-1 text-3xl font-extrabold" id="stat-invoices">0</p>
+                        <p class="mt-1 text-xs text-indigo-50/90">Factures sauvegardées</p>
+                    </div>
                 </div>
             </div>
 
             <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <h2 class="text-sm font-semibold text-slate-700 mb-3 flex items-center justify-between">
-                    Dernière facture
+                    <span class="inline-flex items-center gap-2">
+                        <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-100 text-sky-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M6 4H18V6H6V4Z"/><path d="M6 9H18V11H6V9Z"/><path d="M6 14H14V16H6V14Z"/>
+                            </svg>
+                        </span>
+                        Dernière facture
+                    </span>
                     <span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Firestore</span>
                 </h2>
                 <button onclick="openLastInvoice()" class="w-full text-left group">
-                    <div id="last-invoice-summary" class="text-sm text-slate-500 group-hover:bg-slate-50 rounded-xl p-2 transition">
+                    <div id="last-invoice-summary" class="text-sm text-slate-600 group-hover:bg-slate-50 rounded-xl p-3 transition border border-dashed border-slate-200">
                         Aucune facture enregistrée pour le moment.
                     </div>
                 </button>
