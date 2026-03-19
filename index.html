@@ -171,9 +171,11 @@
                     Dernière facture
                     <span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Firestore</span>
                 </h2>
-                <div id="last-invoice-summary" class="text-sm text-slate-500">
-                    Aucune facture enregistrée pour le moment.
-                </div>
+                <button onclick="openLastInvoice()" class="w-full text-left group">
+                    <div id="last-invoice-summary" class="text-sm text-slate-500 group-hover:bg-slate-50 rounded-xl p-2 transition">
+                        Aucune facture enregistrée pour le moment.
+                    </div>
+                </button>
             </div>
         </section>
 
@@ -605,20 +607,21 @@
         }
 
         // --- Tabs ---
-        function setupTabs() {
+        function showTab(tabName) {
             const buttons = document.querySelectorAll('.tab-btn');
             const panels = document.querySelectorAll('.tab-panel');
 
-            function showTab(tabName) {
-                panels.forEach(p => {
-                    p.classList.toggle('hidden', p.id !== 'tab-' + tabName);
-                });
-                buttons.forEach(btn => {
-                    const active = btn.dataset.tab === tabName;
-                    btn.dataset.active = active ? 'true' : 'false';
-                });
-            }
+            panels.forEach(p => {
+                p.classList.toggle('hidden', p.id !== 'tab-' + tabName);
+            });
+            buttons.forEach(btn => {
+                const active = btn.dataset.tab === tabName;
+                btn.dataset.active = active ? 'true' : 'false';
+            });
+        }
 
+        function setupTabs() {
+            const buttons = document.querySelectorAll('.tab-btn');
             buttons.forEach(btn => {
                 btn.addEventListener('click', () => showTab(btn.dataset.tab));
             });
@@ -1049,6 +1052,82 @@
 
             const url = 'https://wa.me/' + encodeURIComponent(phone) + '?text=' + encodeURIComponent(message);
             window.open(url, '_blank');
+        }
+
+        // --- Open last invoice from dashboard ---
+        function openLastInvoice() {
+            if (!invoices.length) {
+                alert('Aucune facture à ouvrir.');
+                return;
+            }
+            const last = invoices[0];
+
+            // Switch to invoice tab
+            showTab('invoice');
+
+            // Date & number
+            const dateField = document.getElementById('date-field');
+            if (last.date) {
+                dateField.value = last.date;
+                document.getElementById('invoice-date-label').textContent = last.date;
+            }
+            const numberInput = document.getElementById('invoice-number');
+            numberInput.value = last.number || '';
+            document.getElementById('invoice-number-label').textContent = last.number || '-';
+
+            // Client selection/details
+            const select = document.getElementById('invoice-client-select');
+            if (last.clientId) {
+                select.value = last.clientId;
+            } else {
+                select.value = '';
+            }
+            const details = document.getElementById('invoice-client-details');
+            if (last.clientName) {
+                details.value = last.clientName;
+            }
+
+            // Lines
+            const tbody = document.getElementById('product-list');
+            tbody.innerHTML = '';
+            (last.lines || []).forEach(line => {
+                const row = document.createElement('tr');
+                row.className = 'border-b border-slate-100';
+                row.innerHTML = `
+                    <td class="p-3">
+                        <input type="text" placeholder="Produit / service"
+                               list="products-datalist"
+                               oninput="onProductNameChange(this)"
+                               class="w-full outline-none p-1 text-sm border-b border-dashed border-slate-200 focus:border-blue-500 bg-transparent"
+                               value="${line.desc || ''}">
+                    </td>
+                    <td class="p-3 text-right">
+                        <input type="number" value="${line.qty || 1}" min="1"
+                               class="qty w-16 text-right outline-none p-1 text-sm border-b border-dashed border-slate-200 focus:border-blue-500 bg-transparent"
+                               oninput="calculate()">
+                    </td>
+                    <td class="p-3 text-right">
+                        <input type="number" value="${line.price || 0}" step="0.01"
+                               class="price w-24 text-right outline-none p-1 text-sm border-b border-dashed border-slate-200 focus:border-blue-500 bg-transparent"
+                               oninput="calculate()">
+                    </td>
+                    <td class="p-3 text-right font-semibold row-total text-slate-800">0.00</td>
+                    <td class="p-3 text-center no-print">
+                        <button onclick="removeRow(this)" class="text-xs text-red-500 hover:text-red-600 font-medium">
+                            Supprimer
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Notes and tax/discount
+            document.getElementById('invoice-notes').value = last.notes || '';
+            document.getElementById('tax-rate').value = last.taxRate ?? 0;
+            document.getElementById('discount-rate').value = last.discountRate ?? 0;
+
+            // Recalculate totals
+            calculate();
         }
 
         // --- Auth (email / password) ---
