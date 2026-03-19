@@ -141,6 +141,10 @@
                 Produits
             </button>
             <button class="tab-btn flex-1 md:flex-none md:px-4 px-3 py-2 rounded-full text-xs md:text-sm font-semibold text-slate-600 hover:bg-slate-100 data-[active=true]:bg-slate-900 data-[active=true]:text-white transition"
+                    data-tab="invoices">
+                Mes factures
+            </button>
+            <button class="tab-btn flex-1 md:flex-none md:px-4 px-3 py-2 rounded-full text-xs md:text-sm font-semibold text-slate-600 hover:bg-slate-100 data-[active=true]:bg-slate-900 data-[active=true]:text-white transition"
                     data-tab="invoice">
                 Nouvelle facture
             </button>
@@ -288,6 +292,29 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </section>
+
+        <!-- Invoices list tab -->
+        <section id="tab-invoices" class="tab-panel hidden">
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm overflow-x-auto">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-sm font-semibold text-slate-800">Mes factures</h2>
+                    <span class="text-[11px] text-slate-400">Cliquer sur une ligne pour rouvrir la facture</span>
+                </div>
+                <table class="min-w-full text-left text-xs md:text-sm border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
+                            <th class="py-2 px-2 md:px-3">N°</th>
+                            <th class="py-2 px-2 md:px-3">Date</th>
+                            <th class="py-2 px-2 md:px-3">Client</th>
+                            <th class="py-2 px-2 md:px-3 text-right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invoices-table" class="divide-y divide-slate-100 text-slate-700">
+                        <!-- Rows injected -->
+                    </tbody>
+                </table>
             </div>
         </section>
 
@@ -822,6 +849,27 @@
                     </div>
                 `;
             }
+
+            renderInvoicesTable();
+        }
+
+        function renderInvoicesTable() {
+            const tbody = document.getElementById('invoices-table');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            invoices.forEach(inv => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 cursor-pointer';
+                tr.innerHTML = `
+                    <td class="py-2 px-2 md:px-3">${inv.number || '-'}</td>
+                    <td class="py-2 px-2 md:px-3">${inv.date || ''}</td>
+                    <td class="py-2 px-2 md:px-3">${inv.clientName || ''}</td>
+                    <td class="py-2 px-2 md:px-3 text-right">${Number(inv.total || 0).toFixed(2)}</td>
+                `;
+                tr.addEventListener('click', () => openInvoiceById(inv.id));
+                tbody.appendChild(tr);
+            });
         }
 
         // --- Invoice logic ---
@@ -1061,6 +1109,20 @@
                 return;
             }
             const last = invoices[0];
+            fillInvoiceFormFrom(last);
+        }
+
+        function openInvoiceById(id) {
+            const inv = invoices.find(i => i.id === id);
+            if (!inv) {
+                alert('Facture introuvable.');
+                return;
+            }
+            fillInvoiceFormFrom(inv);
+        }
+
+        function fillInvoiceFormFrom(last) {
+            if (!last) return;
 
             // Switch to invoice tab
             showTab('invoice');
