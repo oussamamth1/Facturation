@@ -3,130 +3,832 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Professional Invoice Generator</title>
+    <title>Facturation Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @media print {
             .no-print { display: none; }
             body { background: white; padding: 0; }
             .invoice-box { box-shadow: none; border: none; width: 100%; }
-            input { border: none !important; outline: none !important; }
+            input, textarea, select { border: none !important; outline: none !important; }
         }
     </style>
 </head>
-<body class="bg-gray-200 p-4 md:p-10">
+<body class="bg-slate-100 min-h-screen p-4 md:p-10">
 
-    <div class="max-w-4xl mx-auto bg-white p-8 shadow-2xl rounded-lg invoice-box">
-        
-        <!-- Header: Enterprise & Date -->
-        <div class="flex justify-between items-start border-b-2 border-blue-600 pb-6">
-            <div>
-                <input type="text" placeholder="YOUR ENTERPRISE NAME" class="text-3xl font-bold text-blue-600 w-full outline-none focus:bg-blue-50 p-1 rounded" id="ent-name">
-                <textarea placeholder="Address, Phone, Email" class="block w-full mt-2 text-gray-600 outline-none focus:bg-blue-50 p-1 rounded h-20"></textarea>
-            </div>
-            <div class="text-right">
-                <h2 class="text-4xl text-gray-400 uppercase tracking-widest mb-4">Facture</h2>
-                <div class="flex items-center justify-end">
-                    <span class="mr-2 font-bold">Date:</span>
-                    <input type="date" id="date-field" class="border border-gray-300 rounded px-2 py-1">
+    <div class="max-w-6xl mx-auto">
+        <!-- App Header -->
+        <header class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div class="flex items-center gap-4">
+                <img src="logoSocite.png" alt="Logo" class="h-12 md:h-16 object-contain">
+                <div>
+                    <h1 class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
+                        Facturation Dashboard
+                    </h1>
+                    <p class="text-slate-500 mt-1 text-sm md:text-base">
+                        Gérez vos clients, produits et factures depuis une seule interface.
+                    </p>
                 </div>
             </div>
-        </div>
+            <div class="flex items-center gap-3 no-print">
+                <button onclick="window.print()" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-full shadow-lg shadow-blue-500/30 transition text-sm">
+                    <span>Imprimer / PDF</span>
+                </button>
+            </div>
+        </header>
 
-        <!-- Client Section -->
-        <div class="my-8">
-            <h3 class="font-bold text-gray-700 mb-2 uppercase text-sm tracking-wider">Bill To:</h3>
-            <input type="text" placeholder="Client Name / Enterprise" class="text-xl block w-full outline-none focus:bg-blue-50 p-1 mb-1">
-            <textarea placeholder="Client Address" class="block w-full text-gray-500 outline-none focus:bg-blue-50 p-1 rounded h-16"></textarea>
-        </div>
-
-        <!-- Products Table -->
-        <table class="w-full mt-8 text-left border-collapse">
-            <thead>
-                <tr class="bg-blue-600 text-white">
-                    <th class="p-3 rounded-l">Product Description</th>
-                    <th class="p-3 text-right">Qty</th>
-                    <th class="p-3 text-right">Price</th>
-                    <th class="p-3 text-right rounded-r">Total</th>
-                </tr>
-            </thead>
-            <tbody id="product-list">
-                <tr class="border-b">
-                    <td class="p-3"><input type="text" placeholder="Product Name" class="w-full outline-none p-1"></td>
-                    <td class="p-3 text-right"><input type="number" value="1" min="1" class="qty w-16 text-right outline-none p-1" oninput="calculate()"></td>
-                    <td class="p-3 text-right"><input type="number" value="0" step="0.01" class="price w-24 text-right outline-none p-1" oninput="calculate()"></td>
-                    <td class="p-3 text-right font-bold row-total">$0.00</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <!-- Controls -->
-        <button onclick="addRow()" class="no-print mt-4 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full text-sm font-bold transition">
-            + Add Product
-        </button>
-
-        <!-- Totals -->
-        <div class="mt-10 flex justify-end">
-            <div class="w-full md:w-1/3 bg-gray-50 p-4 rounded-lg">
-                <div class="flex justify-between py-2 text-gray-600">
-                    <span>Subtotal:</span>
-                    <span id="subtotal-val">$0.00</span>
+        <!-- Enterprise Info (persists) -->
+        <section class="mb-6 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div class="flex-1">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                        Informations entreprise
+                    </label>
+                    <input id="ent-name" type="text" placeholder="Nom de votre entreprise"
+                           class="text-xl md:text-2xl font-bold text-blue-700 w-full outline-none bg-slate-50 focus:bg-blue-50 p-2 rounded-lg mb-2">
+                    <textarea id="ent-details" placeholder="Adresse, téléphone, email..."
+                              class="block w-full text-slate-600 outline-none bg-slate-50 focus:bg-blue-50 p-2 rounded-lg h-16 md:h-20"></textarea>
                 </div>
-                <div class="flex justify-between py-3 border-t-2 border-gray-200 mt-2 font-black text-2xl text-blue-700">
-                    <span>TOTAL:</span>
-                    <span id="total-val">$0.00</span>
+                <div class="w-full md:w-64">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Date</span>
+                        <input type="date" id="date-field" class="border border-slate-200 rounded-lg px-2 py-1 text-sm w-32">
+                    </div>
+                    <div class="mt-4 text-right">
+                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Numéro facture</p>
+                        <input id="invoice-number" type="text" placeholder="AUTO"
+                               class="border border-slate-200 rounded-lg px-2 py-1 text-sm w-full text-right bg-slate-50 outline-none">
+                    </div>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!-- Footer Note -->
-        <div class="mt-20 border-t pt-4">
-            <textarea placeholder="Payment notes: Bank Transfer details, Thank you note, etc." class="w-full text-sm text-gray-500 italic outline-none"></textarea>
-        </div>
-    </div>
+        <!-- Main navigation tabs -->
+        <nav class="no-print mb-6 bg-white rounded-full shadow-sm border border-slate-200 p-1 flex flex-wrap gap-1">
+            <button class="tab-btn flex-1 md:flex-none md:px-4 px-3 py-2 rounded-full text-xs md:text-sm font-semibold text-slate-600 hover:bg-slate-100 data-[active=true]:bg-slate-900 data-[active=true]:text-white transition"
+                    data-tab="dashboard">
+                Dashboard
+            </button>
+            <button class="tab-btn flex-1 md:flex-none md:px-4 px-3 py-2 rounded-full text-xs md:text-sm font-semibold text-slate-600 hover:bg-slate-100 data-[active=true]:bg-slate-900 data-[active=true]:text-white transition"
+                    data-tab="clients">
+                Clients
+            </button>
+            <button class="tab-btn flex-1 md:flex-none md:px-4 px-3 py-2 rounded-full text-xs md:text-sm font-semibold text-slate-600 hover:bg-slate-100 data-[active=true]:bg-slate-900 data-[active=true]:text-white transition"
+                    data-tab="products">
+                Produits
+            </button>
+            <button class="tab-btn flex-1 md:flex-none md:px-4 px-3 py-2 rounded-full text-xs md:text-sm font-semibold text-slate-600 hover:bg-slate-100 data-[active=true]:bg-slate-900 data-[active=true]:text-white transition"
+                    data-tab="invoice">
+                Nouvelle facture
+            </button>
+        </nav>
 
-    <!-- Floating Print Button -->
-    <div class="fixed bottom-10 right-10 no-print">
-        <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-full shadow-xl transform hover:scale-105 transition">
-            Print / Save as PDF
-        </button>
+        <!-- Dashboard tab -->
+        <section id="tab-dashboard" class="tab-panel">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Clients</p>
+                    <p class="text-3xl font-extrabold text-slate-900" id="stat-clients">0</p>
+                    <p class="text-xs text-slate-500 mt-1">Nombre de clients enregistrés</p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Produits</p>
+                    <p class="text-3xl font-extrabold text-slate-900" id="stat-products">0</p>
+                    <p class="text-xs text-slate-500 mt-1">Articles disponibles</p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                    <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Factures</p>
+                    <p class="text-3xl font-extrabold text-slate-900" id="stat-invoices">0</p>
+                    <p class="text-xs text-slate-500 mt-1">Factures sauvegardées (local)</p>
+                </div>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <h2 class="text-sm font-semibold text-slate-700 mb-3 flex items-center justify-between">
+                    Dernière facture
+                    <span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">localStorage</span>
+                </h2>
+                <div id="last-invoice-summary" class="text-sm text-slate-500">
+                    Aucune facture enregistrée pour le moment.
+                </div>
+            </div>
+        </section>
+
+        <!-- Clients tab -->
+        <section id="tab-clients" class="tab-panel hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                    <h2 class="text-sm font-semibold text-slate-800 mb-4">Ajouter / Modifier un client</h2>
+                    <input type="hidden" id="client-id">
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Nom / Entreprise</label>
+                            <input id="client-name" type="text" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Adresse</label>
+                            <textarea id="client-address" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-16"></textarea>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1">Email</label>
+                                <input id="client-email" type="email" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1">Téléphone</label>
+                                <input id="client-phone" type="text" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex gap-2">
+                        <button onclick="saveClient()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-sm">
+                            Enregistrer le client
+                        </button>
+                        <button onclick="resetClientForm()" class="text-slate-500 text-xs font-medium px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50">
+                            Nouveau
+                        </button>
+                    </div>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm overflow-x-auto">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-sm font-semibold text-slate-800">Liste des clients</h2>
+                        <span class="text-[11px] text-slate-400">Cliquer sur une ligne pour modifier</span>
+                    </div>
+                    <table class="min-w-full text-left text-xs md:text-sm border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
+                                <th class="py-2 px-2 md:px-3">Nom</th>
+                                <th class="py-2 px-2 md:px-3 hidden md:table-cell">Email</th>
+                                <th class="py-2 px-2 md:px-3 hidden md:table-cell">Téléphone</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clients-table" class="divide-y divide-slate-100 text-slate-700">
+                            <!-- Rows injected -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Products tab -->
+        <section id="tab-products" class="tab-panel hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                    <h2 class="text-sm font-semibold text-slate-800 mb-4">Ajouter / Modifier un produit</h2>
+                    <input type="hidden" id="product-id">
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Nom du produit</label>
+                            <input id="product-name" type="text" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Description</label>
+                            <textarea id="product-description" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-16"></textarea>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1">Prix unitaire</label>
+                                <input id="product-price" type="number" step="0.01" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1">Devise</label>
+                                <input id="product-currency" type="text" placeholder="€ / $ / TND..." class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex gap-2">
+                        <button onclick="saveProduct()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-sm">
+                            Enregistrer le produit
+                        </button>
+                        <button onclick="resetProductForm()" class="text-slate-500 text-xs font-medium px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50">
+                            Nouveau
+                        </button>
+                    </div>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm overflow-x-auto">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-sm font-semibold text-slate-800">Catalogue produits</h2>
+                        <span class="text-[11px] text-slate-400">Cliquer sur une ligne pour modifier</span>
+                    </div>
+                    <table class="min-w-full text-left text-xs md:text-sm border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
+                                <th class="py-2 px-2 md:px-3">Nom</th>
+                                <th class="py-2 px-2 md:px-3 hidden md:table-cell">Prix</th>
+                                <th class="py-2 px-2 md:px-3 hidden md:table-cell">Devise</th>
+                            </tr>
+                        </thead>
+                        <tbody id="products-table" class="divide-y divide-slate-100 text-slate-700">
+                            <!-- Rows injected -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Invoice tab -->
+        <section id="tab-invoice" class="tab-panel hidden">
+            <div class="bg-white p-6 md:p-8 shadow-2xl rounded-2xl border border-slate-200 invoice-box">
+                <!-- Client selection -->
+                <div class="flex flex-col md:flex-row justify-between items-start gap-4 border-b border-slate-200 pb-4 mb-6">
+                    <div class="w-full md:w-1/2">
+                        <h3 class="font-semibold text-slate-700 mb-2 uppercase text-xs tracking-wide">Client</h3>
+                        <select id="invoice-client-select" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2">
+                            <option value="">Sélectionner un client...</option>
+                        </select>
+                        <textarea id="invoice-client-details" placeholder="Adresse du client" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-16"></textarea>
+                    </div>
+                    <div class="text-right md:w-1/3">
+                        <h2 class="text-3xl md:text-4xl text-slate-400 uppercase tracking-[0.35em] md:tracking-[0.5em] mb-3">Facture</h2>
+                        <div class="text-xs text-slate-500">
+                            <p><span class="font-semibold text-slate-600">Date:</span> <span id="invoice-date-label"></span></p>
+                            <p><span class="font-semibold text-slate-600">N°:</span> <span id="invoice-number-label">-</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Products Table -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs md:text-sm">
+                        <thead>
+                            <tr class="bg-slate-900 text-white">
+                                <th class="p-3 rounded-l-lg">Description</th>
+                                <th class="p-3 text-right">Qté</th>
+                                <th class="p-3 text-right">Prix</th>
+                                <th class="p-3 text-right">Total</th>
+                                <th class="p-3 text-center rounded-r-lg no-print">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="product-list">
+                            <tr class="border-b border-slate-100">
+                                <td class="p-3">
+                                    <input type="text" placeholder="Produit / service"
+                                           class="w-full outline-none p-1 text-sm border-b border-dashed border-slate-200 focus:border-blue-500 bg-transparent">
+                                </td>
+                                <td class="p-3 text-right">
+                                    <input type="number" value="1" min="1"
+                                           class="qty w-16 text-right outline-none p-1 text-sm border-b border-dashed border-slate-200 focus:border-blue-500 bg-transparent"
+                                           oninput="calculate()">
+                                </td>
+                                <td class="p-3 text-right">
+                                    <input type="number" value="0" step="0.01"
+                                           class="price w-24 text-right outline-none p-1 text-sm border-b border-dashed border-slate-200 focus:border-blue-500 bg-transparent"
+                                           oninput="calculate()">
+                                </td>
+                                <td class="p-3 text-right font-semibold row-total text-slate-800">0.00</td>
+                                <td class="p-3 text-center no-print">
+                                    <button onclick="removeRow(this)" class="text-xs text-red-500 hover:text-red-600 font-medium">
+                                        Supprimer
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Controls -->
+                <div class="mt-4 flex flex-wrap gap-3 justify-between items-center no-print">
+                    <div class="flex gap-2">
+                        <button onclick="addRow()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-full text-xs md:text-sm font-semibold shadow-sm">
+                            + Ajouter une ligne
+                        </button>
+                        <button onclick="loadFirstProductIntoRow()" class="text-slate-500 border border-slate-200 hover:bg-slate-50 px-3 py-2 rounded-full text-xs md:text-sm font-medium">
+                            Utiliser un produit enregistré
+                        </button>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="saveInvoice()" class="bg-slate-900 hover:bg-black text-white px-4 py-2 rounded-full text-xs md:text-sm font-semibold shadow-sm">
+                            Sauvegarder la facture (local)
+                        </button>
+                        <button onclick="sendInvoiceWhatsApp()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full text-xs md:text-sm font-semibold shadow-sm">
+                            Envoyer via WhatsApp
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Totals -->
+                <div class="mt-8 flex flex-col md:flex-row gap-6 justify-end">
+                    <div class="flex-1 flex flex-col md:flex-row gap-6 items-start justify-between">
+                        <textarea id="invoice-notes" placeholder="Notes de paiement, modalités, merci pour votre confiance..."
+                                  class="w-full md:w-2/3 text-xs md:text-sm text-slate-600 italic outline-none border border-slate-200 rounded-xl p-3 md:p-4 bg-slate-50"></textarea>
+                        <!-- Signature block -->
+                        <div class="mt-4 md:mt-0 md:w-1/3 text-right">
+                            <p class="text-xs uppercase tracking-wide text-slate-400 mb-2">Signature</p>
+                            <div class="inline-flex flex-col items-center justify-center gap-1">
+                                <img src="signature.png" alt="Signature" class="max-h-16 md:max-h-20 object-contain">
+                                <span class="text-[11px] text-slate-400">Signée électroniquement</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="w-full md:w-72 bg-slate-900 text-white rounded-2xl p-4 md:p-5 shadow-lg">
+                        <div class="flex justify-between py-1 text-sm text-slate-200">
+                            <span>Sous-total</span>
+                            <span id="subtotal-val">0.00</span>
+                        </div>
+                        <div class="flex justify-between items-center py-1 text-sm text-slate-200 gap-2">
+                            <div>TVA (%)</div>
+                            <div class="flex items-center gap-2">
+                                <input id="tax-rate" type="number" value="0" step="0.1"
+                                       class="w-16 text-right text-slate-900 bg-white rounded px-2 py-1 text-xs outline-none"
+                                       oninput="calculate()">
+                                <span id="tax-amount" class="text-xs text-slate-100">+ 0.00</span>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center py-1 text-sm text-slate-200 gap-2">
+                            <div>Remise (%)</div>
+                            <div class="flex items-center gap-2">
+                                <input id="discount-rate" type="number" value="0" step="0.1"
+                                       class="w-16 text-right text-slate-900 bg-white rounded px-2 py-1 text-xs outline-none"
+                                       oninput="calculate()">
+                                <span id="discount-amount" class="text-xs text-slate-100">- 0.00</span>
+                            </div>
+                        </div>
+                        <div class="border-t border-slate-700 mt-3 pt-3 flex justify-between items-baseline">
+                            <span class="text-xs font-semibold uppercase tracking-wide text-slate-200">Total TTC</span>
+                            <span id="total-val" class="text-2xl font-extrabold text-white">0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
     </div>
 
     <script>
-        // Set today's date automatically
-        document.getElementById('date-field').valueAsDate = new Date();
+        // --- State in memory ---
+        let clients = [];
+        let products = [];
+        let invoices = [];
 
+        // --- Helpers for localStorage ---
+        const LS_KEYS = {
+            clients: 'fact_clients',
+            products: 'fact_products',
+            invoices: 'fact_invoices',
+            enterprise: 'fact_enterprise',
+        };
+
+        function loadFromStorage() {
+            try {
+                clients = JSON.parse(localStorage.getItem(LS_KEYS.clients)) || [];
+                products = JSON.parse(localStorage.getItem(LS_KEYS.products)) || [];
+                invoices = JSON.parse(localStorage.getItem(LS_KEYS.invoices)) || [];
+
+                const ent = JSON.parse(localStorage.getItem(LS_KEYS.enterprise)) || null;
+                if (ent) {
+                    document.getElementById('ent-name').value = ent.name || '';
+                    document.getElementById('ent-details').value = ent.details || '';
+                }
+            } catch (e) {
+                console.error('Erreur de chargement localStorage', e);
+            }
+        }
+
+        function saveEnterprise() {
+            const data = {
+                name: document.getElementById('ent-name').value.trim(),
+                details: document.getElementById('ent-details').value.trim(),
+            };
+            localStorage.setItem(LS_KEYS.enterprise, JSON.stringify(data));
+        }
+
+        function saveClients() {
+            localStorage.setItem(LS_KEYS.clients, JSON.stringify(clients));
+        }
+
+        function saveProducts() {
+            localStorage.setItem(LS_KEYS.products, JSON.stringify(products));
+        }
+
+        function saveInvoices() {
+            localStorage.setItem(LS_KEYS.invoices, JSON.stringify(invoices));
+        }
+
+        // --- Tabs ---
+        function setupTabs() {
+            const buttons = document.querySelectorAll('.tab-btn');
+            const panels = document.querySelectorAll('.tab-panel');
+
+            function showTab(tabName) {
+                panels.forEach(p => {
+                    p.classList.toggle('hidden', p.id !== 'tab-' + tabName);
+                });
+                buttons.forEach(btn => {
+                    const active = btn.dataset.tab === tabName;
+                    btn.dataset.active = active ? 'true' : 'false';
+                });
+            }
+
+            buttons.forEach(btn => {
+                btn.addEventListener('click', () => showTab(btn.dataset.tab));
+            });
+
+            // Default tab
+            showTab('dashboard');
+        }
+
+        // --- Clients ---
+        function renderClientsTable() {
+            const tbody = document.getElementById('clients-table');
+            tbody.innerHTML = '';
+            clients.forEach(client => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 cursor-pointer';
+                tr.innerHTML = `
+                    <td class="py-2 px-2 md:px-3">${client.name || ''}</td>
+                    <td class="py-2 px-2 md:px-3 hidden md:table-cell">${client.email || ''}</td>
+                    <td class="py-2 px-2 md:px-3 hidden md:table-cell">${client.phone || ''}</td>
+                `;
+                tr.addEventListener('click', () => loadClientIntoForm(client.id));
+                tbody.appendChild(tr);
+            });
+            renderInvoiceClientOptions();
+            updateDashboardStats();
+        }
+
+        function resetClientForm() {
+            document.getElementById('client-id').value = '';
+            document.getElementById('client-name').value = '';
+            document.getElementById('client-address').value = '';
+            document.getElementById('client-email').value = '';
+            document.getElementById('client-phone').value = '';
+        }
+
+        function saveClient() {
+            const id = document.getElementById('client-id').value || Date.now().toString();
+            const name = document.getElementById('client-name').value.trim();
+            const address = document.getElementById('client-address').value.trim();
+            const email = document.getElementById('client-email').value.trim();
+            const phone = document.getElementById('client-phone').value.trim();
+
+            if (!name) {
+                alert('Le nom du client est obligatoire.');
+                return;
+            }
+
+            const existingIndex = clients.findIndex(c => c.id === id);
+            const client = { id, name, address, email, phone };
+
+            if (existingIndex >= 0) {
+                clients[existingIndex] = client;
+            } else {
+                clients.push(client);
+            }
+
+            saveClients();
+            renderClientsTable();
+            resetClientForm();
+        }
+
+        function loadClientIntoForm(id) {
+            const client = clients.find(c => c.id === id);
+            if (!client) return;
+            document.getElementById('client-id').value = client.id;
+            document.getElementById('client-name').value = client.name || '';
+            document.getElementById('client-address').value = client.address || '';
+            document.getElementById('client-email').value = client.email || '';
+            document.getElementById('client-phone').value = client.phone || '';
+        }
+
+        function renderInvoiceClientOptions() {
+            const select = document.getElementById('invoice-client-select');
+            const current = select.value;
+            select.innerHTML = '<option value=\"\">Sélectionner un client...</option>';
+            clients.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.name || '';
+                select.appendChild(opt);
+            });
+            if (current) {
+                select.value = current;
+            }
+        }
+
+        // --- Products ---
+        function renderProductsTable() {
+            const tbody = document.getElementById('products-table');
+            tbody.innerHTML = '';
+            products.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 cursor-pointer';
+                tr.innerHTML = `
+                    <td class="py-2 px-2 md:px-3">${p.name || ''}</td>
+                    <td class="py-2 px-2 md:px-3 hidden md:table-cell">${Number(p.price || 0).toFixed(2)}</td>
+                    <td class="py-2 px-2 md:px-3 hidden md:table-cell">${p.currency || ''}</td>
+                `;
+                tr.addEventListener('click', () => loadProductIntoForm(p.id));
+                tbody.appendChild(tr);
+            });
+            updateDashboardStats();
+        }
+
+        function resetProductForm() {
+            document.getElementById('product-id').value = '';
+            document.getElementById('product-name').value = '';
+            document.getElementById('product-description').value = '';
+            document.getElementById('product-price').value = '';
+            document.getElementById('product-currency').value = '';
+        }
+
+        function saveProduct() {
+            const id = document.getElementById('product-id').value || Date.now().toString();
+            const name = document.getElementById('product-name').value.trim();
+            const description = document.getElementById('product-description').value.trim();
+            const price = parseFloat(document.getElementById('product-price').value || '0');
+            const currency = document.getElementById('product-currency').value.trim();
+
+            if (!name) {
+                alert('Le nom du produit est obligatoire.');
+                return;
+            }
+
+            const existingIndex = products.findIndex(p => p.id === id);
+            const product = { id, name, description, price, currency };
+
+            if (existingIndex >= 0) {
+                products[existingIndex] = product;
+            } else {
+                products.push(product);
+            }
+
+            saveProducts();
+            renderProductsTable();
+            resetProductForm();
+        }
+
+        function loadProductIntoForm(id) {
+            const product = products.find(p => p.id === id);
+            if (!product) return;
+            document.getElementById('product-id').value = product.id;
+            document.getElementById('product-name').value = product.name || '';
+            document.getElementById('product-description').value = product.description || '';
+            document.getElementById('product-price').value = product.price || '';
+            document.getElementById('product-currency').value = product.currency || '';
+        }
+
+        // --- Dashboard ---
+        function updateDashboardStats() {
+            document.getElementById('stat-clients').textContent = clients.length.toString();
+            document.getElementById('stat-products').textContent = products.length.toString();
+            document.getElementById('stat-invoices').textContent = invoices.length.toString();
+
+            const last = invoices[invoices.length - 1];
+            const container = document.getElementById('last-invoice-summary');
+            if (!last) {
+                container.textContent = 'Aucune facture enregistrée pour le moment.';
+            } else {
+                container.innerHTML = `
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                        <div>
+                            <p class="font-semibold text-slate-800 text-sm">Facture #${last.number || '-'}</p>
+                            <p class="text-xs text-slate-500">${last.date || ''}</p>
+                            <p class="text-xs text-slate-600 mt-1">${last.clientName || ''}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs uppercase text-slate-400">Total TTC</p>
+                            <p class="text-xl font-extrabold text-slate-900">${Number(last.total || 0).toFixed(2)}</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // --- Invoice logic ---
         function addRow() {
             const table = document.getElementById('product-list');
             const row = document.createElement('tr');
-            row.className = "border-b";
+            row.className = 'border-b border-slate-100';
             row.innerHTML = `
-                <td class="p-3"><input type="text" placeholder="Product Name" class="w-full outline-none p-1"></td>
-                <td class="p-3 text-right"><input type="number" value="1" min="1" class="qty w-16 text-right outline-none p-1" oninput="calculate()"></td>
-                <td class="p-3 text-right"><input type="number" value="0" step="0.01" class="price w-24 text-right outline-none p-1" oninput="calculate()"></td>
-                <td class="p-3 text-right font-bold row-total">$0.00</td>
+                <td class="p-3">
+                    <input type="text" placeholder="Produit / service"
+                           class="w-full outline-none p-1 text-sm border-b border-dashed border-slate-200 focus:border-blue-500 bg-transparent">
+                </td>
+                <td class="p-3 text-right">
+                    <input type="number" value="1" min="1"
+                           class="qty w-16 text-right outline-none p-1 text-sm border-b border-dashed border-slate-200 focus:border-blue-500 bg-transparent"
+                           oninput="calculate()">
+                </td>
+                <td class="p-3 text-right">
+                    <input type="number" value="0" step="0.01"
+                           class="price w-24 text-right outline-none p-1 text-sm border-b border-dashed border-slate-200 focus:border-blue-500 bg-transparent"
+                           oninput="calculate()">
+                </td>
+                <td class="p-3 text-right font-semibold row-total text-slate-800">0.00</td>
+                <td class="p-3 text-center no-print">
+                    <button onclick="removeRow(this)" class="text-xs text-red-500 hover:text-red-600 font-medium">
+                        Supprimer
+                    </button>
+                </td>
             `;
             table.appendChild(row);
+        }
+
+        function removeRow(button) {
+            const row = button.closest('tr');
+            if (!row) return;
+            const tbody = row.parentElement;
+            tbody.removeChild(row);
+            if (tbody.children.length === 0) {
+                addRow();
+            } else {
+                calculate();
+            }
         }
 
         function calculate() {
             let grandTotal = 0;
             const rows = document.querySelectorAll('#product-list tr');
-            
+
             rows.forEach(row => {
-                const qty = row.querySelector('.qty').value || 0;
-                const price = row.querySelector('.price').value || 0;
+                const qtyInput = row.querySelector('.qty');
+                const priceInput = row.querySelector('.price');
+                if (!qtyInput || !priceInput) return;
+                const qty = parseFloat(qtyInput.value || '0');
+                const price = parseFloat(priceInput.value || '0');
                 const total = qty * price;
-                row.querySelector('.row-total').innerText = '$' + total.toFixed(2);
+                const cell = row.querySelector('.row-total');
+                if (cell) cell.innerText = total.toFixed(2);
                 grandTotal += total;
             });
 
-            document.getElementById('subtotal-val').innerText = '$' + grandTotal.toFixed(2);
-            document.getElementById('total-val').innerText = '$' + grandTotal.toFixed(2);
+            const taxRate = parseFloat(document.getElementById('tax-rate').value || '0');
+            const discountRate = parseFloat(document.getElementById('discount-rate').value || '0');
+
+            const taxAmount = grandTotal * (taxRate / 100);
+            const discountAmount = grandTotal * (discountRate / 100);
+            const finalTotal = grandTotal + taxAmount - discountAmount;
+
+            document.getElementById('subtotal-val').innerText = grandTotal.toFixed(2);
+            document.getElementById('tax-amount').innerText = '+ ' + taxAmount.toFixed(2);
+            document.getElementById('discount-amount').innerText = '- ' + discountAmount.toFixed(2);
+            document.getElementById('total-val').innerText = finalTotal.toFixed(2);
         }
 
-        // Initial calculation
-        calculate();
+        function loadFirstProductIntoRow() {
+            if (!products.length) {
+                alert('Aucun produit enregistré. Ajoutez d\'abord un produit dans l\'onglet Produits.');
+                return;
+            }
+            const first = products[0];
+            const row = document.querySelector('#product-list tr');
+            if (!row) return;
+
+            const descInput = row.querySelector('input[type=\"text\"]');
+            const priceInput = row.querySelector('.price');
+            if (descInput) descInput.value = first.name || '';
+            if (priceInput) priceInput.value = first.price || 0;
+            calculate();
+        }
+
+        function saveInvoice() {
+            const clientSelect = document.getElementById('invoice-client-select');
+            const clientId = clientSelect.value || null;
+            const client = clients.find(c => c.id === clientId) || null;
+            const date = document.getElementById('date-field').value || '';
+
+            const numberInput = document.getElementById('invoice-number');
+            let number = numberInput.value.trim();
+            if (!number) {
+                number = (invoices.length + 1).toString().padStart(4, '0');
+                numberInput.value = number;
+            }
+
+            const lines = [];
+            document.querySelectorAll('#product-list tr').forEach(row => {
+                const desc = row.querySelector('input[type=\"text\"]')?.value.trim();
+                const qty = parseFloat(row.querySelector('.qty')?.value || '0');
+                const price = parseFloat(row.querySelector('.price')?.value || '0');
+                if (!desc || qty <= 0) return;
+                lines.push({ desc, qty, price });
+            });
+
+            const subtotal = parseFloat(document.getElementById('subtotal-val').innerText || '0');
+            const taxRate = parseFloat(document.getElementById('tax-rate').value || '0');
+            const discountRate = parseFloat(document.getElementById('discount-rate').value || '0');
+            const taxAmount = parseFloat(document.getElementById('tax-amount').innerText.replace('+', '') || '0');
+            const discountAmount = parseFloat(document.getElementById('discount-amount').innerText.replace('-', '') || '0');
+            const total = parseFloat(document.getElementById('total-val').innerText || '0');
+
+            const invoice = {
+                id: Date.now().toString(),
+                number,
+                date,
+                clientId: client ? client.id : null,
+                clientName: client ? client.name : document.getElementById('invoice-client-details').value.split('\n')[0] || '',
+                lines,
+                subtotal,
+                taxRate,
+                discountRate,
+                taxAmount,
+                discountAmount,
+                total,
+                notes: document.getElementById('invoice-notes').value || '',
+            };
+
+            invoices.push(invoice);
+            saveInvoices();
+            updateDashboardStats();
+            alert('Facture sauvegardée dans le navigateur (localStorage).\n\nElle ne sera pas envoyée sur un serveur.');
+            document.getElementById('invoice-number-label').textContent = number;
+        }
+
+        function sendInvoiceWhatsApp() {
+            const phone = prompt('Entrez le numéro WhatsApp (avec indicatif international, ex: 33612345678) :');
+            if (!phone) return;
+
+            const date = document.getElementById('date-field').value || '';
+            const number = document.getElementById('invoice-number').value || document.getElementById('invoice-number-label').textContent || '';
+            const clientSelect = document.getElementById('invoice-client-select');
+            const client = clients.find(c => c.id === clientSelect.value) || null;
+            const clientName = client ? client.name : (document.getElementById('invoice-client-details').value.split('\n')[0] || '');
+
+            let message = 'Facture';
+            if (number) message += ' #' + number;
+            if (date) message += ' du ' + date;
+            message += '\\n';
+
+            if (clientName) {
+                message += '\\nClient: ' + clientName + '\\n';
+            }
+
+            message += '\\nLignes:\\n';
+            document.querySelectorAll('#product-list tr').forEach(row => {
+                const desc = row.querySelector('input[type=\"text\"]')?.value.trim();
+                const qty = parseFloat(row.querySelector('.qty')?.value || '0');
+                const price = parseFloat(row.querySelector('.price')?.value || '0');
+                if (!desc || qty <= 0) return;
+                const lineTotal = qty * price;
+                message += `- ${desc} : ${qty} x ${price.toFixed(2)} = ${lineTotal.toFixed(2)}\\n`;
+            });
+
+            const subtotal = document.getElementById('subtotal-val').innerText || '0.00';
+            const taxRate = document.getElementById('tax-rate').value || '0';
+            const discountRate = document.getElementById('discount-rate').value || '0';
+            const taxAmount = document.getElementById('tax-amount').innerText.replace('+', '').trim() || '0.00';
+            const discountAmount = document.getElementById('discount-amount').innerText.replace('-', '').trim() || '0.00';
+            const total = document.getElementById('total-val').innerText || '0.00';
+
+            message += '\\nSous-total: ' + subtotal;
+            if (parseFloat(taxRate) !== 0) {
+                message += `\\nTVA (${taxRate}%) : +${taxAmount}`;
+            }
+            if (parseFloat(discountRate) !== 0) {
+                message += `\\nRemise (${discountRate}%) : -${discountAmount}`;
+            }
+            message += '\\nTOTAL TTC: ' + total + '\\n';
+
+            const notes = document.getElementById('invoice-notes').value.trim();
+            if (notes) {
+                message += '\\nNotes: ' + notes;
+            }
+
+            const url = 'https://wa.me/' + encodeURIComponent(phone) + '?text=' + encodeURIComponent(message);
+            window.open(url, '_blank');
+        }
+
+        // --- Event bindings & initialisation ---
+        function setupEnterpriseAutosave() {
+            document.getElementById('ent-name').addEventListener('input', saveEnterprise);
+            document.getElementById('ent-details').addEventListener('input', saveEnterprise);
+        }
+
+        function setupInvoiceClientSync() {
+            const select = document.getElementById('invoice-client-select');
+            select.addEventListener('change', () => {
+                const id = select.value;
+                const client = clients.find(c => c.id === id);
+                const textarea = document.getElementById('invoice-client-details');
+                if (client) {
+                    textarea.value = [client.address, client.email, client.phone].filter(Boolean).join('\\n');
+                } else {
+                    textarea.value = '';
+                }
+            });
+        }
+
+        function initDate() {
+            const dateField = document.getElementById('date-field');
+            dateField.valueAsDate = new Date();
+            document.getElementById('invoice-date-label').textContent = dateField.value;
+            dateField.addEventListener('change', () => {
+                document.getElementById('invoice-date-label').textContent = dateField.value;
+            });
+        }
+
+        // --- Boot ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFromStorage();
+            setupTabs();
+            setupEnterpriseAutosave();
+            setupInvoiceClientSync();
+            initDate();
+
+            renderClientsTable();
+            renderProductsTable();
+            updateDashboardStats();
+
+            calculate();
+        });
     </script>
 </body>
 </html>
