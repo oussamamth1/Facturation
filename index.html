@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Facturation Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase (Firestore + Anonymous Auth) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <style>
         @media print {
             .no-print { display: none; }
@@ -106,7 +110,7 @@
             <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <h2 class="text-sm font-semibold text-slate-700 mb-3 flex items-center justify-between">
                     Dernière facture
-                    <span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">localStorage</span>
+                    <span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">Firestore</span>
                 </h2>
                 <div id="last-invoice-summary" class="text-sm text-slate-500">
                     Aucune facture enregistrée pour le moment.
@@ -249,6 +253,8 @@
 
                 <!-- Products Table -->
                 <div class="overflow-x-auto">
+                    <!-- Suggestions from your saved products -->
+                    <datalist id="products-datalist"></datalist>
                     <table class="w-full text-left border-collapse text-xs md:text-sm">
                         <thead>
                             <tr class="bg-slate-900 text-white">
@@ -263,6 +269,8 @@
                             <tr class="border-b border-slate-100">
                                 <td class="p-3">
                                     <input type="text" placeholder="Produit / service"
+                                           list="products-datalist"
+                                           oninput="onProductNameChange(this)"
                                            class="w-full outline-none p-1 text-sm border-b border-dashed border-slate-200 focus:border-blue-500 bg-transparent">
                                 </td>
                                 <td class="p-3 text-right">
@@ -359,48 +367,107 @@
         let products = [];
         let invoices = [];
 
-        // --- Helpers for localStorage ---
-        const LS_KEYS = {
-            clients: 'fact_clients',
-            products: 'fact_products',
-            invoices: 'fact_invoices',
-            enterprise: 'fact_enterprise',
+        // --- Firebase (Firestore + Anonymous Auth) ---
+        // IMPORTANT: Replace these values with your Firebase project config.
+        // You can find them in Firebase Console -> Project settings -> "Your apps" -> Firebase SDK snippet.
+        const firebaseConfig = {
+            apiKey: "AIzaSyC6dSEsP6iRBFaXr8qjX13PVTt5Q17eZqM",
+            authDomain: "testf-2497a.firebaseapp.com",
+            projectId: "testf-2497a",
+            storageBucket: "testf-2497a.firebasestorage.app",
+            messagingSenderId: "516716068209",
+            appId: "1:516716068209:web:32c05182c91d1b7ee04ad0",
+            measurementId: "G-EJ2SLNRBQP",
         };
 
-        function loadFromStorage() {
-            try {
-                clients = JSON.parse(localStorage.getItem(LS_KEYS.clients)) || [];
-                products = JSON.parse(localStorage.getItem(LS_KEYS.products)) || [];
-                invoices = JSON.parse(localStorage.getItem(LS_KEYS.invoices)) || [];
+        let db = null;
+        let auth = null;
 
-                const ent = JSON.parse(localStorage.getItem(LS_KEYS.enterprise)) || null;
-                if (ent) {
-                    document.getElementById('ent-name').value = ent.name || '';
-                    document.getElementById('ent-details').value = ent.details || '';
-                }
-            } catch (e) {
-                console.error('Erreur de chargement localStorage', e);
+        async function loadFromStorage() {
+            // Init Firebase only once.
+            if (!window.firebase) {
+                console.error('Firebase SDK not loaded.');
+                return;
+            }
+            if (!firebase.apps || firebase.apps.length === 0) {
+                firebase.initializeApp(firebaseConfig);
+            }
+
+            auth = firebase.auth();
+            db = firebase.firestore();
+
+            // Anonymous login (your choice)
+            if (!auth.currentUser) {
+                await auth.signInAnonymously();
+            }
+
+            // Live settings (enterprise)
+            db.collection('settings').doc('enterprise').onSnapshot(snap => {
+                const ent = snap.exists ? snap.data() : null;
+                if (!ent) return;
+                document.getElementById('ent-name').value = ent.name || '';
+                document.getElementById('ent-details').value = ent.details || '';
+            });
+
+            // Live clients
+            db.collection('clients').onSnapshot(snap => {
+                clients = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderClientsTable();
+            });
+
+            // Live products
+            db.collection('products').onSnapshot(snap => {
+                products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderProductsTable();
+            });
+
+            // Live invoices (newest first)
+            db.collection('invoices').orderBy('createdAt', 'desc').onSnapshot(snap => {
+                invoices = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                updateDashboardStats();
+            });
+        }
+
+        function renderProductsDatalist() {
+            const dl = document.getElementById('products-datalist');
+            if (!dl) return;
+            const currentValue = dl.dataset.lastValue || '';
+
+            dl.innerHTML = '';
+            products.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.name || '';
+                dl.appendChild(option);
+            });
+
+            // Preserve last selected value if still available (optional UX).
+            if (currentValue) {
+                dl.dataset.lastValue = currentValue;
             }
         }
 
         function saveEnterprise() {
+            if (!db) return;
             const data = {
                 name: document.getElementById('ent-name').value.trim(),
                 details: document.getElementById('ent-details').value.trim(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
             };
-            localStorage.setItem(LS_KEYS.enterprise, JSON.stringify(data));
+            db.collection('settings').doc('enterprise').set(data, { merge: true }).catch(err => {
+                console.error('saveEnterprise failed', err);
+            });
         }
 
         function saveClients() {
-            localStorage.setItem(LS_KEYS.clients, JSON.stringify(clients));
+            // No-op: clients are persisted via Firestore in saveClient()
         }
 
         function saveProducts() {
-            localStorage.setItem(LS_KEYS.products, JSON.stringify(products));
+            // No-op: products are persisted via Firestore in saveProduct()
         }
 
         function saveInvoices() {
-            localStorage.setItem(LS_KEYS.invoices, JSON.stringify(invoices));
+            // No-op: invoices are persisted via Firestore in saveInvoice()
         }
 
         // --- Tabs ---
@@ -474,7 +541,18 @@
                 clients.push(client);
             }
 
-            saveClients();
+            if (!db) {
+                alert('Firebase non prêt. Attendez quelques secondes puis réessayez.');
+                return;
+            }
+
+            // Persist client in Firestore (create/update).
+            db.collection('clients').doc(id).set({
+                ...client,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true }).catch(err => console.error('saveClient failed', err));
+
             renderClientsTable();
             resetClientForm();
         }
@@ -519,6 +597,8 @@
                 tr.addEventListener('click', () => loadProductIntoForm(p.id));
                 tbody.appendChild(tr);
             });
+
+            renderProductsDatalist();
             updateDashboardStats();
         }
 
@@ -551,7 +631,18 @@
                 products.push(product);
             }
 
-            saveProducts();
+            if (!db) {
+                alert('Firebase non prêt. Attendez quelques secondes puis réessayez.');
+                return;
+            }
+
+            // Persist product in Firestore (create/update).
+            db.collection('products').doc(id).set({
+                ...product,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true }).catch(err => console.error('saveProduct failed', err));
+
             renderProductsTable();
             resetProductForm();
         }
@@ -572,7 +663,8 @@
             document.getElementById('stat-products').textContent = products.length.toString();
             document.getElementById('stat-invoices').textContent = invoices.length.toString();
 
-            const last = invoices[invoices.length - 1];
+            // With Firestore listener we keep newest first.
+            const last = invoices[0];
             const container = document.getElementById('last-invoice-summary');
             if (!last) {
                 container.textContent = 'Aucune facture enregistrée pour le moment.';
@@ -601,6 +693,8 @@
             row.innerHTML = `
                 <td class="p-3">
                     <input type="text" placeholder="Produit / service"
+                           list="products-datalist"
+                           oninput="onProductNameChange(this)"
                            class="w-full outline-none p-1 text-sm border-b border-dashed border-slate-200 focus:border-blue-500 bg-transparent">
                 </td>
                 <td class="p-3 text-right">
@@ -680,6 +774,27 @@
             calculate();
         }
 
+        function onProductNameChange(inputEl) {
+            // If the typed value matches a saved product name, auto-fill the unit price.
+            const row = inputEl.closest('tr');
+            if (!row) return;
+
+            const name = (inputEl.value || '').trim();
+            if (!name) return;
+
+            const product = products.find(p => (p.name || '') === name);
+            if (!product) {
+                // Custom description: keep whatever price the user already entered.
+                return;
+            }
+
+            const priceInput = row.querySelector('.price');
+            if (priceInput) {
+                priceInput.value = Number(product.price || 0).toString();
+            }
+            calculate();
+        }
+
         function saveInvoice() {
             const clientSelect = document.getElementById('invoice-client-select');
             const clientId = clientSelect.value || null;
@@ -725,10 +840,23 @@
                 notes: document.getElementById('invoice-notes').value || '',
             };
 
-            invoices.push(invoice);
-            saveInvoices();
+            if (!db) {
+                alert('Firebase non prêt. Attendez quelques secondes puis réessayez.');
+                return;
+            }
+
+            // Optimistic UI (Firestore listener will confirm/refresh).
+            // Keep newest first for the dashboard summary.
+            invoices.unshift(invoice);
             updateDashboardStats();
-            alert('Facture sauvegardée dans le navigateur (localStorage).\n\nElle ne sera pas envoyée sur un serveur.');
+
+            db.collection('invoices').doc(invoice.id).set({
+                ...invoice,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true }).catch(err => console.error('saveInvoice failed', err));
+
+            alert('Facture sauvegardée dans Firestore (sync multi-appareils).');
             document.getElementById('invoice-number-label').textContent = number;
         }
 
@@ -816,17 +944,12 @@
         }
 
         // --- Boot ---
-        document.addEventListener('DOMContentLoaded', () => {
-            loadFromStorage();
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadFromStorage();
             setupTabs();
             setupEnterpriseAutosave();
             setupInvoiceClientSync();
             initDate();
-
-            renderClientsTable();
-            renderProductsTable();
-            updateDashboardStats();
-
             calculate();
         });
     </script>
