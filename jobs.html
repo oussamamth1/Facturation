@@ -37,7 +37,9 @@
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 mb-1">Client</label>
                         <input id="job-client" type="text" placeholder="Nom du client"
+                               list="jobs-clients-datalist"
                                class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <datalist id="jobs-clients-datalist"></datalist>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 mb-1">Adresse / Lieu</label>
@@ -118,6 +120,7 @@
         let currentUserId = null;
         let jobs = [];
         let unsubscribeJobs = null;
+        let jobsClients = [];
 
         const firebaseConfig = {
             apiKey: "AIzaSyC6dSEsP6iRBFaXr8qjX13PVTt5Q17eZqM",
@@ -229,6 +232,21 @@
                         });
                     renderJobsTable();
                 }, err => console.error('jobs listener error', err));
+
+            // Also load this user's clients for the datalist
+            db.collection('clients')
+                .where('userId', '==', currentUserId)
+                .onSnapshot(snap => {
+                    jobsClients = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    const dl = document.getElementById('jobs-clients-datalist');
+                    if (!dl) return;
+                    dl.innerHTML = '';
+                    jobsClients.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.name || '';
+                        dl.appendChild(opt);
+                    });
+                }, err => console.error('jobs clients listener error', err));
         }
 
         function handleAuthStateChanged(user) {
