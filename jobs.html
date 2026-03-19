@@ -8,10 +8,83 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <style>
+        @media print {
+            @page {
+                size: A4;
+                margin: 12mm;
+            }
+
+            html, body {
+                background: #fff !important;
+                padding: 0 !important;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            .jobs-layout-grid {
+                display: block !important;
+            }
+
+            .jobs-print-box {
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
+            }
+
+            .jobs-print-header {
+                display: block !important;
+            }
+
+            .jobs-print-col {
+                display: table-cell !important;
+            }
+
+            .jobs-print-table thead th {
+                background: #4b5563 !important;
+                color: #fff !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .jobs-print-table tbody tr:nth-child(even) {
+                background: #f3f4f6 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .jobs-print-table {
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 11px;
+            }
+
+            .jobs-print-summary-row {
+                display: table-row !important;
+                background: #e5e7eb !important;
+                font-weight: 700;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .jobs-print-table input, .jobs-print-table select, .jobs-print-table textarea {
+                border: none !important;
+                outline: none !important;
+                background: transparent !important;
+            }
+        }
+
+        @media screen {
+            .jobs-print-header {
+                display: none;
+            }
+        }
+    </style>
 </head>
 <body class="bg-slate-100 min-h-screen p-4 md:p-10">
     <div class="max-w-5xl mx-auto">
-        <header class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <header class="no-print mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
                 <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
                     Travaux clients
@@ -20,17 +93,20 @@
                     Suivi des interventions (lieu, service, prix, date).
                 </p>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
                 <a href="index.html" class="no-print inline-flex items-center px-3 py-2 rounded-full text-xs font-semibold border border-slate-300 text-slate-600 hover:bg-slate-50">
                     ← Retour au dashboard
                 </a>
-                <p id="jobs-user-label" class="text-xs text-slate-500"></p>
+                <button type="button" onclick="prepareJobsPrint()" class="no-print inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-full shadow-sm text-xs md:text-sm">
+                    Imprimer / PDF
+                </button>
+                <p id="jobs-user-label" class="text-xs text-slate-500 no-print"></p>
             </div>
         </header>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 jobs-layout-grid">
             <!-- Form -->
-            <section class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <section class="no-print bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <h2 class="text-sm font-semibold text-slate-800 mb-4">Ajouter / Modifier un travail</h2>
                 <input type="hidden" id="job-id">
                 <div class="space-y-3">
@@ -102,21 +178,27 @@
                 </div>
             </section>
 
-            <!-- List -->
-            <section class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm overflow-x-auto">
-                <div class="flex items-center justify-between mb-3">
+            <!-- List (zone imprimable) -->
+            <section class="jobs-print-box bg-white border border-slate-200 rounded-2xl p-5 shadow-sm overflow-x-auto">
+                <div class="jobs-print-header mb-4 pb-3 border-b border-slate-300">
+                    <h1 id="jobs-print-title" class="text-xl font-bold text-slate-900">Travaux clients</h1>
+                    <p id="jobs-print-meta" class="text-sm text-slate-600 mt-1"></p>
+                </div>
+                <div class="flex items-center justify-between mb-3 no-print">
                     <h2 class="text-sm font-semibold text-slate-800">Travaux enregistrés</h2>
                     <span class="text-[11px] text-slate-400">Cliquer sur une ligne pour modifier</span>
                 </div>
-                <table class="min-w-full text-left text-xs md:text-sm border-collapse">
+                <table class="jobs-print-table min-w-full text-left text-xs md:text-sm border-collapse border border-slate-200">
                     <thead>
-                        <tr class="bg-slate-50 text-slate-500 border-b border-slate-200">
+                        <tr class="bg-slate-50 text-slate-500 border-b border-slate-200 print:bg-transparent print:text-white">
                             <th class="py-2 px-2 md:px-3">Date</th>
                             <th class="py-2 px-2 md:px-3">Client</th>
-                            <th class="py-2 px-2 md:px-3 hidden md:table-cell">Service</th>
+                            <th class="py-2 px-2 md:px-3 hidden md:table-cell jobs-print-col">Service</th>
+                            <th class="py-2 px-2 md:px-3 text-right">Lieu</th>
+                            <th class="py-2 px-2 md:px-3 text-center jobs-print-col">Statut</th>
                             <th class="py-2 px-2 md:px-3 text-right">Total</th>
-                            <th class="py-2 px-2 md:px-3 text-right hidden md:table-cell">Reçu</th>
-                            <th class="py-2 px-2 md:px-3 text-right hidden md:table-cell">Reste</th>
+                            <th class="py-2 px-2 md:px-3 text-right hidden md:table-cell jobs-print-col">Reçu</th>
+                            <th class="py-2 px-2 md:px-3 text-right hidden md:table-cell jobs-print-col">Reste</th>
                         </tr>
                     </thead>
                     <tbody id="jobs-table" class="divide-y divide-slate-100 text-slate-700">
@@ -136,6 +218,56 @@
         let unsubscribeJobs = null;
         let jobsClients = [];
 
+        const jobsMoney = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        function formatJobsMoney(n) {
+            return jobsMoney.format(Number(n) || 0);
+        }
+
+        function formatJobsDate(iso) {
+            if (!iso) return '';
+            const p = String(iso).split('-');
+            if (p.length !== 3) return iso;
+            return `${p[2]}/${p[1]}/${p[0]}`;
+        }
+
+        const JOB_STATUS_LABELS = {
+            planned: 'Planifié',
+            in_progress: 'En cours',
+            done: 'Terminé',
+            cancelled: 'Annulé',
+        };
+
+        function jobStatusLabel(status) {
+            return JOB_STATUS_LABELS[status] || status || '';
+        }
+
+        async function prepareJobsPrint() {
+            const titleEl = document.getElementById('jobs-print-title');
+            const metaEl = document.getElementById('jobs-print-meta');
+            if (metaEl) {
+                metaEl.textContent = 'Liste générée le ' + new Date().toLocaleString('fr-FR', {
+                    dateStyle: 'long',
+                    timeStyle: 'short',
+                });
+            }
+            if (titleEl) {
+                titleEl.textContent = 'Travaux clients';
+                if (db && currentUserId) {
+                    try {
+                        const snap = await db.collection('settings').doc('enterprise_' + currentUserId).get();
+                        const ent = snap.exists ? snap.data() : null;
+                        if (ent && ent.name) {
+                            titleEl.textContent = ent.name + ' — Travaux clients';
+                        }
+                    } catch (e) {
+                        console.warn('prepareJobsPrint settings', e);
+                    }
+                }
+            }
+            setTimeout(() => window.print(), 120);
+        }
+
         const firebaseConfig = {
             apiKey: "AIzaSyC6dSEsP6iRBFaXr8qjX13PVTt5Q17eZqM",
             authDomain: "testf-2497a.firebaseapp.com",
@@ -149,20 +281,43 @@
         function renderJobsTable() {
             const tbody = document.getElementById('jobs-table');
             tbody.innerHTML = '';
+            let sumPrice = 0;
+            let sumPaid = 0;
             jobs.forEach(job => {
+                const price = Number(job.price || 0);
+                const paid = Number(job.amountPaid || 0);
+                const rest = price - paid;
+                sumPrice += price;
+                sumPaid += paid;
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-slate-50 cursor-pointer';
+                const loc = (job.location || '').replace(/</g, '&lt;').replace(/&/g, '&amp;');
+                const client = (job.client || '').replace(/</g, '&lt;').replace(/&/g, '&amp;');
+                const service = (job.service || '').replace(/</g, '&lt;').replace(/&/g, '&amp;');
                 tr.innerHTML = `
-                    <td class="py-2 px-2 md:px-3">${job.date || ''}</td>
-                    <td class="py-2 px-2 md:px-3">${job.client || ''}</td>
-                    <td class="py-2 px-2 md:px-3 hidden md:table-cell">${job.service || ''}</td>
-                    <td class="py-2 px-2 md:px-3 text-right">${Number(job.price || 0).toFixed(2)}</td>
-                    <td class="py-2 px-2 md:px-3 text-right hidden md:table-cell">${Number(job.amountPaid || 0).toFixed(2)}</td>
-                    <td class="py-2 px-2 md:px-3 text-right hidden md:table-cell">${Number((job.price || 0) - (job.amountPaid || 0)).toFixed(2)}</td>
+                    <td class="py-2 px-2 md:px-3 whitespace-nowrap">${formatJobsDate(job.date)}</td>
+                    <td class="py-2 px-2 md:px-3">${client}</td>
+                    <td class="py-2 px-2 md:px-3 hidden md:table-cell jobs-print-col">${service}</td>
+                    <td class="py-2 px-2 md:px-3 hidden md:table-cell jobs-print-col text-slate-600">${loc}</td>
+                    <td class="py-2 px-2 md:px-3 hidden md:table-cell jobs-print-col text-center text-slate-600">${jobStatusLabel(job.status)}</td>
+                    <td class="py-2 px-2 md:px-3 text-right tabular-nums">${formatJobsMoney(price)}</td>
+                    <td class="py-2 px-2 md:px-3 text-right hidden md:table-cell jobs-print-col tabular-nums">${formatJobsMoney(paid)}</td>
+                    <td class="py-2 px-2 md:px-3 text-right hidden md:table-cell jobs-print-col tabular-nums">${formatJobsMoney(rest)}</td>
                 `;
                 tr.addEventListener('click', () => loadJobIntoForm(job.id));
                 tbody.appendChild(tr);
             });
+            const sumRest = sumPrice - sumPaid;
+            const foot = document.createElement('tr');
+            foot.className = 'jobs-print-summary-row border-t-2 border-slate-300';
+            foot.innerHTML = `
+                <td class="py-2 px-2 md:px-3" colspan="5">Totaux (${jobs.length} travail${jobs.length !== 1 ? 'x' : ''})</td>
+                <td class="py-2 px-2 md:px-3 text-right tabular-nums">${formatJobsMoney(sumPrice)}</td>
+                <td class="py-2 px-2 md:px-3 text-right hidden md:table-cell jobs-print-col tabular-nums">${formatJobsMoney(sumPaid)}</td>
+                <td class="py-2 px-2 md:px-3 text-right hidden md:table-cell jobs-print-col tabular-nums">${formatJobsMoney(sumRest)}</td>
+            `;
+            foot.addEventListener('click', e => e.stopPropagation());
+            tbody.appendChild(foot);
         }
 
         function resetJobForm() {
