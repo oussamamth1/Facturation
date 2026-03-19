@@ -407,25 +407,31 @@
                 if (!ent) return;
                 document.getElementById('ent-name').value = ent.name || '';
                 document.getElementById('ent-details').value = ent.details || '';
-            });
+            }, err => console.error('Firestore settings listener error', err));
 
             // Live clients
             db.collection('clients').onSnapshot(snap => {
                 clients = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 renderClientsTable();
-            });
+            }, err => console.error('Firestore clients listener error', err));
 
             // Live products
             db.collection('products').onSnapshot(snap => {
                 products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 renderProductsTable();
-            });
+            }, err => console.error('Firestore products listener error', err));
 
             // Live invoices (newest first)
-            db.collection('invoices').orderBy('createdAt', 'desc').onSnapshot(snap => {
-                invoices = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            db.collection('invoices').onSnapshot(snap => {
+                invoices = snap.docs
+                    .map(d => ({ id: d.id, ...d.data() }))
+                    .sort((a, b) => {
+                        const av = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt || 0);
+                        const bv = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt || 0);
+                        return bv - av;
+                    });
                 updateDashboardStats();
-            });
+            }, err => console.error('Firestore invoices listener error', err));
         }
 
         function renderProductsDatalist() {
