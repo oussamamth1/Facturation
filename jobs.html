@@ -73,6 +73,10 @@
                 outline: none !important;
                 background: transparent !important;
             }
+
+            .jobs-print-table .no-print {
+                display: none !important;
+            }
         }
 
         @media screen {
@@ -168,12 +172,15 @@
                                   class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-16"></textarea>
                     </div>
                 </div>
-                <div class="mt-4 flex gap-2">
-                    <button onclick="saveJob()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-sm">
+                <div class="mt-4 flex flex-wrap gap-2">
+                    <button type="button" onclick="saveJob()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-sm">
                         Enregistrer le travail
                     </button>
-                    <button onclick="resetJobForm()" class="text-slate-500 text-xs font-medium px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50">
+                    <button type="button" onclick="resetJobForm()" class="text-slate-500 text-xs font-medium px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50">
                         Nouveau
+                    </button>
+                    <button type="button" onclick="sendCurrentJobToInvoice()" class="bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-sm">
+                        Créer une facture (ce travail)
                     </button>
                 </div>
             </section>
@@ -184,9 +191,16 @@
                     <h1 id="jobs-print-title" class="text-xl font-bold text-slate-900">Travaux clients</h1>
                     <p id="jobs-print-meta" class="text-sm text-slate-600 mt-1"></p>
                 </div>
-                <div class="flex items-center justify-between mb-3 no-print">
-                    <h2 class="text-sm font-semibold text-slate-800">Travaux enregistrés</h2>
-                    <span class="text-[11px] text-slate-400">Cliquer sur une ligne pour modifier</span>
+                <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-3 no-print">
+                    <div>
+                        <h2 class="text-sm font-semibold text-slate-800">Travaux enregistrés</h2>
+                        <span class="text-[11px] text-slate-400">Ligne = modifier · boutons ou corbeille</span>
+                    </div>
+                    <div class="w-full sm:w-64">
+                        <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Filtrer par client</label>
+                        <input type="search" id="jobs-filter-client" placeholder="Nom du client…"
+                               class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
                 </div>
                 <table class="jobs-print-table min-w-full text-left text-xs md:text-sm border-collapse border border-slate-200">
                     <thead>
@@ -194,11 +208,12 @@
                             <th class="py-2 px-2 md:px-3">Date</th>
                             <th class="py-2 px-2 md:px-3">Client</th>
                             <th class="py-2 px-2 md:px-3 hidden md:table-cell jobs-print-col">Service</th>
-                            <th class="py-2 px-2 md:px-3 text-right">Lieu</th>
-                            <th class="py-2 px-2 md:px-3 text-center jobs-print-col">Statut</th>
+                            <th class="py-2 px-2 md:px-3 hidden md:table-cell jobs-print-col text-right">Lieu</th>
+                            <th class="py-2 px-2 md:px-3 hidden md:table-cell jobs-print-col text-center">Statut</th>
                             <th class="py-2 px-2 md:px-3 text-right">Total</th>
                             <th class="py-2 px-2 md:px-3 text-right hidden md:table-cell jobs-print-col">Reçu</th>
                             <th class="py-2 px-2 md:px-3 text-right hidden md:table-cell jobs-print-col">Reste</th>
+                            <th class="no-print py-2 px-2 md:px-3 text-right whitespace-nowrap">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="jobs-table" class="divide-y divide-slate-100 text-slate-700">
@@ -278,12 +293,19 @@
             measurementId: "G-EJ2SLNRBQP",
         };
 
+        function getJobsFiltered() {
+            const q = (document.getElementById('jobs-filter-client')?.value || '').trim().toLowerCase();
+            if (!q) return jobs;
+            return jobs.filter(j => (j.client || '').toLowerCase().includes(q));
+        }
+
         function renderJobsTable() {
             const tbody = document.getElementById('jobs-table');
             tbody.innerHTML = '';
+            const list = getJobsFiltered();
             let sumPrice = 0;
             let sumPaid = 0;
-            jobs.forEach(job => {
+            list.forEach(job => {
                 const price = Number(job.price || 0);
                 const paid = Number(job.amountPaid || 0);
                 const rest = price - paid;
@@ -303,21 +325,109 @@
                     <td class="py-2 px-2 md:px-3 text-right tabular-nums">${formatJobsMoney(price)}</td>
                     <td class="py-2 px-2 md:px-3 text-right hidden md:table-cell jobs-print-col tabular-nums">${formatJobsMoney(paid)}</td>
                     <td class="py-2 px-2 md:px-3 text-right hidden md:table-cell jobs-print-col tabular-nums">${formatJobsMoney(rest)}</td>
+                    <td class="no-print py-2 px-2 md:px-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
+                        <button type="button" class="text-blue-600 hover:text-blue-800 text-xs font-semibold mr-1">Modifier</button>
+                        <button type="button" class="text-sky-600 hover:text-sky-800 text-xs font-semibold mr-1">Facture</button>
+                        <button type="button" class="text-red-600 hover:text-red-800 text-xs font-semibold">Supprimer</button>
+                    </td>
                 `;
                 tr.addEventListener('click', () => loadJobIntoForm(job.id));
+                const btns = tr.querySelectorAll('button');
+                btns[0].addEventListener('click', e => {
+                    e.stopPropagation();
+                    loadJobIntoForm(job.id);
+                });
+                btns[1].addEventListener('click', e => {
+                    e.stopPropagation();
+                    openInvoiceFromJob(job);
+                });
+                btns[2].addEventListener('click', e => {
+                    e.stopPropagation();
+                    deleteJobById(job.id);
+                });
                 tbody.appendChild(tr);
             });
             const sumRest = sumPrice - sumPaid;
             const foot = document.createElement('tr');
             foot.className = 'jobs-print-summary-row border-t-2 border-slate-300';
+            const totalLabel = list.length === jobs.length
+                ? `Totaux (${list.length} travail${list.length !== 1 ? 'x' : ''})`
+                : `Totaux filtrés (${list.length} sur ${jobs.length})`;
             foot.innerHTML = `
-                <td class="py-2 px-2 md:px-3" colspan="5">Totaux (${jobs.length} travail${jobs.length !== 1 ? 'x' : ''})</td>
+                <td class="py-2 px-2 md:px-3" colspan="5">${totalLabel}</td>
                 <td class="py-2 px-2 md:px-3 text-right tabular-nums">${formatJobsMoney(sumPrice)}</td>
                 <td class="py-2 px-2 md:px-3 text-right hidden md:table-cell jobs-print-col tabular-nums">${formatJobsMoney(sumPaid)}</td>
                 <td class="py-2 px-2 md:px-3 text-right hidden md:table-cell jobs-print-col tabular-nums">${formatJobsMoney(sumRest)}</td>
+                <td class="no-print py-2 px-2 md:px-3"></td>
             `;
             foot.addEventListener('click', e => e.stopPropagation());
             tbody.appendChild(foot);
+        }
+
+        function jobToInvoicePayload(job) {
+            return {
+                id: job.id || '',
+                client: job.client || '',
+                location: job.location || '',
+                service: job.service || '',
+                price: Number(job.price) || 0,
+                date: job.date || '',
+                notes: job.notes || '',
+            };
+        }
+
+        function openInvoiceFromJob(job) {
+            if (!job) return;
+            if (!(job.client || '').trim() || !(job.service || '').trim()) {
+                alert('Ce travail doit avoir un client et un service.');
+                return;
+            }
+            try {
+                sessionStorage.setItem('facturation_import_job', JSON.stringify(jobToInvoicePayload(job)));
+                window.location.href = 'index.html?importJob=1';
+            } catch (e) {
+                console.error(e);
+                alert('Impossible d\'ouvrir la facturation.');
+            }
+        }
+
+        function sendCurrentJobToInvoice() {
+            const client = document.getElementById('job-client').value.trim();
+            const service = document.getElementById('job-service').value.trim();
+            if (!client || !service) {
+                alert('Renseignez au moins le client et le service pour créer une facture.');
+                return;
+            }
+            const payload = {
+                id: document.getElementById('job-id').value || '',
+                client,
+                location: document.getElementById('job-location').value.trim(),
+                service,
+                price: parseFloat(document.getElementById('job-price').value || '0'),
+                date: document.getElementById('job-date').value || '',
+                notes: document.getElementById('job-notes').value.trim(),
+            };
+            try {
+                sessionStorage.setItem('facturation_import_job', JSON.stringify(payload));
+                window.location.href = 'index.html?importJob=1';
+            } catch (e) {
+                console.error(e);
+                alert('Impossible d\'ouvrir la facturation.');
+            }
+        }
+
+        async function deleteJobById(id) {
+            if (!id || !confirm('Supprimer définitivement ce travail ?')) return;
+            if (!db || !currentUserId) {
+                alert('Connectez-vous d\'abord.');
+                return;
+            }
+            try {
+                await db.collection('jobs').doc(id).delete();
+            } catch (err) {
+                console.error('deleteJobById', err);
+                alert('Impossible de supprimer le travail.');
+            }
         }
 
         function resetJobForm() {
@@ -494,6 +604,11 @@
                 };
                 priceInput.addEventListener('input', recalc);
                 paidInput.addEventListener('input', recalc);
+            }
+
+            const jobsFilter = document.getElementById('jobs-filter-client');
+            if (jobsFilter) {
+                jobsFilter.addEventListener('input', () => renderJobsTable());
             }
         });
     </script>
