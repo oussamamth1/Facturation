@@ -50,11 +50,17 @@
                 width: 100%;
             }
 
-            /* Avoid breaking totals/signature across pages */
+            /* Laisser la facture se répartir sur plusieurs pages (évite PDF vide / plantage si le logo ou le tableau est grand) */
             .invoice-box,
-            .invoice-box table,
-            .invoice-box textarea {
+            .invoice-box table {
+                page-break-inside: auto;
+                break-inside: auto;
+            }
+
+            /* Garder le bloc des totaux groupé quand possible */
+            .invoice-totals-print {
                 page-break-inside: avoid;
+                break-inside: avoid;
             }
 
             input, textarea, select {
@@ -102,7 +108,6 @@
                 visibility: visible !important;
                 opacity: 1 !important;
                 max-height: 30mm !important;
-                min-height: 12mm !important;
                 width: auto !important;
                 max-width: 75mm !important;
                 height: auto !important;
@@ -110,6 +115,12 @@
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
                 page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            .invoice-tn img {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
 
             /* Forcer l’affichage du panneau facture même avec la classe .hidden (Tailwind) */
@@ -527,7 +538,7 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-6">
                     <div class="text-slate-900 space-y-1 text-sm leading-relaxed">
-                        <img src="logo-entreprise.png" alt="Logo entreprise" class="invoice-pdf-logo max-h-20 md:max-h-28 w-auto object-contain object-left mb-3" width="240" height="160">
+                        <img src="logo-entreprise.png" alt="Logo entreprise" class="invoice-pdf-logo max-h-20 md:max-h-28 w-auto object-contain object-left mb-3" width="240" height="160" loading="eager" decoding="sync">
                         <p class="text-base font-bold" id="inv-sender-name"></p>
                         <p class="whitespace-pre-wrap text-slate-800" id="inv-sender-adr"></p>
                         <p class="text-slate-800" id="inv-sender-tel"></p>
@@ -643,7 +654,7 @@
                         </div>
                     </div>
 
-                    <div class="w-full lg:w-80 border border-slate-300 rounded-lg overflow-hidden bg-white text-slate-900 shadow-sm">
+                    <div class="invoice-totals-print w-full lg:w-80 border border-slate-300 rounded-lg overflow-hidden bg-white text-slate-900 shadow-sm">
                         <div class="flex justify-between py-2 px-3 text-sm border-b border-slate-200">
                             <span class="font-semibold">TOTAL HT</span>
                             <span id="subtotal-val">0,000</span>
@@ -752,7 +763,26 @@
             syncInvoiceFromEnterprise();
             syncInvoiceTitles();
             calculate();
-            setTimeout(() => window.print(), 150);
+            requestAnimationFrame(() => {
+                const imgs = document.querySelectorAll('#tab-invoice img');
+                const waitOne = img => new Promise(resolve => {
+                    if (!img || !img.src) {
+                        resolve();
+                        return;
+                    }
+                    if (img.complete && img.naturalWidth > 0) {
+                        resolve();
+                        return;
+                    }
+                    const done = () => resolve();
+                    img.addEventListener('load', done, { once: true });
+                    img.addEventListener('error', done, { once: true });
+                    setTimeout(done, 2500);
+                });
+                Promise.all(Array.from(imgs).map(waitOne)).then(() => {
+                    setTimeout(() => window.print(), 200);
+                });
+            });
         }
 
         // --- Firebase (Firestore + Anonymous Auth) ---
