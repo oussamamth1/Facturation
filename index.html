@@ -96,6 +96,28 @@
                 print-color-adjust: exact;
             }
 
+            /* Logo entreprise : toujours visible à l’impression / PDF */
+            .invoice-pdf-logo {
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                max-height: 30mm !important;
+                min-height: 12mm !important;
+                width: auto !important;
+                max-width: 75mm !important;
+                height: auto !important;
+                object-fit: contain !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                page-break-inside: avoid;
+            }
+
+            /* Forcer l’affichage du panneau facture même avec la classe .hidden (Tailwind) */
+            #tab-invoice.hidden,
+            section#tab-invoice {
+                display: block !important;
+            }
+
             .invoice-placeholder-row {
                 display: table-row !important;
             }
@@ -148,13 +170,13 @@
                            class="border border-slate-200 rounded-lg px-3 py-2 text-xs md:text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full md:w-52">
                     <input id="auth-password" type="password" placeholder="Mot de passe"
                            class="border border-slate-200 rounded-lg px-3 py-2 text-xs md:text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full md:w-40">
-                    <button onclick="registerWithEmail()"
-                            class="bg-emerald-500 hover:bg-emerald-600 text-white text-xs md:text-sm font-semibold px-3 py-2 rounded-lg shadow-sm">
-                        Créer un compte
-                    </button>
                     <button onclick="loginWithEmail()"
                             class="bg-slate-900 hover:bg-black text-white text-xs md:text-sm font-semibold px-3 py-2 rounded-lg shadow-sm">
                         Se connecter
+                    </button>
+                    <button type="button" onclick="resetPasswordWithEmail()"
+                            class="bg-sky-600 hover:bg-sky-700 text-white text-xs md:text-sm font-semibold px-3 py-2 rounded-lg shadow-sm">
+                        Mot de passe oublié
                     </button>
                 </div>
                 <button id="logout-btn" onclick="logoutUser()"
@@ -169,7 +191,7 @@
         <!-- App Header -->
         <header class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div class="flex items-center gap-4">
-                <img src="logoSocite.png" alt="Logo" class="h-12 md:h-16 object-contain">
+                <img src="logo-entreprise.png" alt="CHAUD & FROID" class="h-14 md:h-[4.5rem] w-auto object-contain object-left drop-shadow-sm">
                 <div>
                     <h1 class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
                         Facturation Dashboard
@@ -505,6 +527,7 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-6">
                     <div class="text-slate-900 space-y-1 text-sm leading-relaxed">
+                        <img src="logo-entreprise.png" alt="Logo entreprise" class="invoice-pdf-logo max-h-20 md:max-h-28 w-auto object-contain object-left mb-3" width="240" height="160">
                         <p class="text-base font-bold" id="inv-sender-name"></p>
                         <p class="whitespace-pre-wrap text-slate-800" id="inv-sender-adr"></p>
                         <p class="text-slate-800" id="inv-sender-tel"></p>
@@ -1751,6 +1774,25 @@
             } catch (err) {
                 console.error('registerWithEmail failed', err);
                 alert(err.message || 'Erreur lors de la création du compte.');
+            }
+        }
+
+        async function resetPasswordWithEmail() {
+            if (!auth) {
+                alert('Firebase non prêt. Rechargez la page.');
+                return;
+            }
+            const email = document.getElementById('auth-email').value.trim();
+            if (!email) {
+                alert('Veuillez entrer votre Email.');
+                return;
+            }
+            try {
+                await auth.sendPasswordResetEmail(email);
+                alert('Email de réinitialisation envoyé. Vérifiez votre boîte mail.');
+            } catch (err) {
+                console.error('resetPasswordWithEmail failed', err);
+                alert(err.message || 'Erreur lors de l envoi du lien de réinitialisation.');
             }
         }
 
