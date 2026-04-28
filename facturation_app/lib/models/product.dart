@@ -7,6 +7,7 @@ class Product {
   final String description;
   final double price;
   final String currency;
+  final String category;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -17,6 +18,7 @@ class Product {
     this.description = '',
     this.price = 0,
     this.currency = 'TND',
+    this.category = '',
     this.createdAt,
     this.updatedAt,
   });
@@ -30,6 +32,7 @@ class Product {
       description: d['description'] ?? '',
       price: (d['price'] as num?)?.toDouble() ?? 0,
       currency: d['currency'] ?? 'TND',
+      category: d['category'] ?? '',
       createdAt: (d['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (d['updatedAt'] as Timestamp?)?.toDate(),
     );
@@ -41,6 +44,7 @@ class Product {
         'description': description,
         'price': price,
         'currency': currency,
+        'category': category,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 }

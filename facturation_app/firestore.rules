@@ -1,0 +1,89 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Clients ---
+    match /clients/{doc} {
+      allow read:   if request.auth != null
+                    && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null
+                    && request.auth.uid == request.resource.data.userId;
+      allow update: if request.auth != null
+                    && request.auth.uid == resource.data.userId
+                    && request.auth.uid == request.resource.data.userId;
+      allow delete: if request.auth != null
+                    && request.auth.uid == resource.data.userId;
+    }
+
+    // --- Products ---
+    match /products/{doc} {
+      allow read:   if request.auth != null
+                    && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null
+                    && request.auth.uid == request.resource.data.userId;
+      allow update: if request.auth != null
+                    && request.auth.uid == resource.data.userId
+                    && request.auth.uid == request.resource.data.userId;
+      allow delete: if request.auth != null
+                    && request.auth.uid == resource.data.userId;
+    }
+
+    // --- Invoices ---
+    match /invoices/{doc} {
+      allow read:   if request.auth != null
+                    && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null
+                    && request.auth.uid == request.resource.data.userId;
+      allow update: if request.auth != null
+                    && request.auth.uid == resource.data.userId
+                    && request.auth.uid == request.resource.data.userId;
+      allow delete: if request.auth != null
+                    && request.auth.uid == resource.data.userId;
+    }
+
+    // --- Jobs ---
+    match /jobs/{doc} {
+      allow read:   if request.auth != null
+                    && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null
+                    && request.auth.uid == request.resource.data.userId;
+      allow update: if request.auth != null
+                    && request.auth.uid == resource.data.userId
+                    && request.auth.uid == request.resource.data.userId;
+      allow delete: if request.auth != null
+                    && request.auth.uid == resource.data.userId;
+    }
+
+    // --- Calendar events ---
+    match /events/{doc} {
+      allow read:   if request.auth != null
+                    && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null
+                    && request.auth.uid == request.resource.data.userId;
+      allow update: if request.auth != null
+                    && request.auth.uid == resource.data.userId
+                    && request.auth.uid == request.resource.data.userId;
+      allow delete: if request.auth != null
+                    && request.auth.uid == resource.data.userId;
+    }
+
+    // --- Product categories ---
+    match /categories/{doc} {
+      allow read:   if request.auth != null
+                    && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null
+                    && request.auth.uid == request.resource.data.userId;
+      allow update: if request.auth != null
+                    && request.auth.uid == resource.data.userId
+                    && request.auth.uid == request.resource.data.userId;
+      allow delete: if request.auth != null
+                    && request.auth.uid == resource.data.userId;
+    }
+
+    // --- Settings: one doc per user, id = "enterprise_<uid>" ---
+    match /settings/{doc} {
+      allow read, write: if request.auth != null
+                         && doc == "enterprise_" + request.auth.uid;
+    }
+  }
+}

@@ -18,8 +18,23 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
   final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _mfCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
   String? _editingId;
   String _search = '';
+  int _visibleCount = 5;
+
+  static const _pageSize = 5;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollCtrl.addListener(() {
+      if (_scrollCtrl.position.pixels >=
+          _scrollCtrl.position.maxScrollExtent - 200) {
+        setState(() => _visibleCount += _pageSize);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -28,6 +43,7 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
     _mfCtrl.dispose();
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
@@ -95,8 +111,11 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
         : clients
             .where((c) => c.name.toLowerCase().contains(_search.toLowerCase()))
             .toList();
+    final visible = filtered.take(_visibleCount).toList();
+    final hasMore = filtered.length > visible.length;
 
     return SingleChildScrollView(
+      controller: _scrollCtrl,
       padding: const EdgeInsets.all(16),
       child: Column(children: [
         // Form
@@ -154,7 +173,10 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
                   hintText: 'Rechercher un client...',
                   prefixIcon: Icon(Icons.search, size: 18),
                 ),
-                onChanged: (v) => setState(() => _search = v),
+                onChanged: (v) => setState(() {
+                  _search = v;
+                  _visibleCount = _pageSize;
+                }),
               ),
             ),
             if (clientsAsync.isLoading)
@@ -171,11 +193,17 @@ class _ClientsTabState extends ConsumerState<ClientsTab> {
               ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: filtered.length,
+                itemCount: visible.length + (hasMore ? 1 : 0),
                 separatorBuilder: (_, _) =>
                     const Divider(height: 1, color: kSlate200),
                 itemBuilder: (_, i) {
-                  final c = filtered[i];
+                  if (i == visible.length) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    );
+                  }
+                  final c = visible[i];
                   return ListTile(
                     leading: CircleAvatar(
                       backgroundColor: kBlue.withValues(alpha: 0.1),

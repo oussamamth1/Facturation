@@ -5,11 +5,13 @@ import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
+import 'services/notification_service.dart';
 import 'theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await NotificationService.init();
   runApp(const ProviderScope(child: FacturationApp()));
 }
 

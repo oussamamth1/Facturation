@@ -8,6 +8,7 @@ class Job {
   final String service;
   final double price;
   final String date;
+  final String time; // HH:mm — empty = no alarm
   final String status;
   final String notes;
   final double amountPaid;
@@ -22,6 +23,7 @@ class Job {
     this.service = '',
     this.price = 0,
     this.date = '',
+    this.time = '',
     this.status = 'Planifié',
     this.notes = '',
     this.amountPaid = 0,
@@ -41,6 +43,7 @@ class Job {
       service: d['service'] ?? '',
       price: (d['price'] as num?)?.toDouble() ?? 0,
       date: d['date'] ?? '',
+      time: d['time'] ?? '',
       status: _normalizeStatus(d['status'] ?? 'Planifié'),
       notes: d['notes'] ?? '',
       amountPaid: (d['amountPaid'] as num?)?.toDouble() ?? 0,
@@ -66,6 +69,7 @@ class Job {
         'service': service,
         'price': price,
         'date': date,
+        'time': time,
         'status': status,
         'notes': notes,
         'amountPaid': amountPaid,

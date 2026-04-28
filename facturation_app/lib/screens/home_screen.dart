@@ -5,8 +5,10 @@ import 'tabs/dashboard_tab.dart';
 import 'tabs/clients_tab.dart';
 import 'tabs/products_tab.dart';
 import 'tabs/invoices_tab.dart';
+import 'tabs/calendar_tab.dart';
 import 'jobs_screen.dart';
 import '../screens/settings_screen.dart';
+import '../screens/categories_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -18,12 +20,13 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _index = 0;
 
-  static const _tabs = [
-    DashboardTab(),
-    ClientsTab(),
-    ProductsTab(),
-    InvoicesTab(),
-    JobsScreen(),
+  List<Widget> get _tabs => [
+    DashboardTab(onNavigate: (i) => setState(() => _index = i)),
+    const ClientsTab(),
+    const ProductsTab(),
+    const InvoicesTab(),
+    const JobsScreen(),
+    const CalendarTab(),
   ];
 
   static const _labels = [
@@ -32,6 +35,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     'Produits',
     'Factures',
     'Travaux',
+    'Calendrier',
   ];
 
   static const _icons = [
@@ -40,6 +44,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     Icons.inventory_2_outlined,
     Icons.receipt_outlined,
     Icons.work_outline,
+    Icons.calendar_month_outlined,
   ];
 
   static const _selectedIcons = [
@@ -48,6 +53,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     Icons.inventory_2,
     Icons.receipt,
     Icons.work,
+    Icons.calendar_month,
   ];
 
   @override
@@ -57,6 +63,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       appBar: AppBar(
         title: Text(_labels[_index]),
         actions: [
+          if (_index == 2)
+            IconButton(
+              icon: const Icon(Icons.label_outlined),
+              tooltip: 'Gérer les catégories',
+              onPressed: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const CategoriesScreen())),
+            ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Paramètres',
@@ -92,7 +105,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: List.generate(
-          5,
+          6,
           (i) => NavigationDestination(
             icon: Icon(_icons[i]),
             selectedIcon: Icon(_selectedIcons[i]),

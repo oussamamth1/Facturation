@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/client.dart';
 import '../models/job.dart';
+import '../models/app_settings.dart';
 import '../providers/auth_provider.dart';
 import '../providers/clients_provider.dart';
 import '../providers/jobs_provider.dart';
+import '../providers/settings_provider.dart';
+import '../services/pdf_service.dart';
+import '../services/whatsapp_service.dart';
 import '../utils/formatters.dart';
 import '../theme.dart';
 import 'invoice_editor_screen.dart';
@@ -16,21 +20,71 @@ class JobsScreen extends ConsumerStatefulWidget {
   ConsumerState<JobsScreen> createState() => _JobsScreenState();
 }
 
+const _kJobPageSize = 5;
+
 class _JobsScreenState extends ConsumerState<JobsScreen> {
+  final _scrollCtrl = ScrollController();
   String _search = '';
+  String? _statusFilter;  // null = tous
+  String? _paymentFilter; // null = tous | 'payé' | 'partiel' | 'non_payé'
+  int _visibleCount = _kJobPageSize;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollCtrl.addListener(() {
+      if (_scrollCtrl.position.pixels >=
+          _scrollCtrl.position.maxScrollExtent - 200) {
+        setState(() => _visibleCount += _kJobPageSize);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  static const _statuses = ['Planifié', 'En cours', 'Terminé', 'Annulé'];
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'Terminé':
+        return kGreen;
+      case 'En cours':
+        return kBlue;
+      case 'Annulé':
+        return kRed;
+      default:
+        return const Color(0xFFF59E0B);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final jobsAsync = ref.watch(jobsProvider);
     final jobs = jobsAsync.value ?? [];
-    final filtered = _search.isEmpty
-        ? jobs
-        : jobs
-            .where((j) => j.client.toLowerCase().contains(_search.toLowerCase()))
-            .toList();
 
-    final totalPrice = jobs.fold<double>(0, (s, j) => s + j.price);
-    final totalPaid = jobs.fold<double>(0, (s, j) => s + j.amountPaid);
+    final filtered = jobs.where((j) {
+      final matchSearch = _search.isEmpty ||
+          j.client.toLowerCase().contains(_search.toLowerCase());
+      final matchStatus =
+          _statusFilter == null || j.status == _statusFilter;
+      final matchPayment = switch (_paymentFilter) {
+        'payé'     => j.remaining <= 0,
+        'partiel'  => j.amountPaid > 0 && j.remaining > 0,
+        'non_payé' => j.amountPaid == 0,
+        _          => true,
+      };
+      return matchSearch && matchStatus && matchPayment;
+    }).toList();
+
+    final visible = filtered.take(_visibleCount).toList();
+    final hasMore = filtered.length > _visibleCount;
+
+    final totalPrice = filtered.fold<double>(0, (s, j) => s + j.price);
+    final totalPaid = filtered.fold<double>(0, (s, j) => s + j.amountPaid);
     final totalRemaining = totalPrice - totalPaid;
 
     return Scaffold(
@@ -51,15 +105,85 @@ class _JobsScreenState extends ConsumerState<JobsScreen> {
         const Divider(height: 1),
         // Search
         Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
           child: TextField(
             decoration: const InputDecoration(
               hintText: 'Rechercher par client...',
               prefixIcon: Icon(Icons.search, size: 18),
             ),
-            onChanged: (v) => setState(() => _search = v),
+            onChanged: (v) => setState(() {
+              _search = v;
+              _visibleCount = _kJobPageSize;
+            }),
           ),
         ),
+        // Status filter chips
+        SizedBox(
+          height: 40,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: FilterChip(
+                  label: const Text('Tous'),
+                  selected: _statusFilter == null,
+                  onSelected: (_) => setState(() => _statusFilter = null),
+                  selectedColor: kBlue.withValues(alpha: 0.15),
+                  checkmarkColor: kBlue,
+                  labelStyle: TextStyle(
+                    fontSize: 12,
+                    color: _statusFilter == null ? kBlue : kSlate700,
+                    fontWeight: _statusFilter == null
+                        ? FontWeight.w700
+                        : FontWeight.normal,
+                  ),
+                ),
+              ),
+              ..._statuses.map((s) {
+                final color = _statusColor(s);
+                final selected = _statusFilter == s;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Text(s),
+                    selected: selected,
+                    onSelected: (_) =>
+                        setState(() {
+                          _statusFilter = selected ? null : s;
+                          _visibleCount = _kJobPageSize;
+                        }),
+                    selectedColor: color.withValues(alpha: 0.15),
+                    checkmarkColor: color,
+                    labelStyle: TextStyle(
+                      fontSize: 12,
+                      color: selected ? color : kSlate700,
+                      fontWeight:
+                          selected ? FontWeight.w700 : FontWeight.normal,
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
+        // Payment filter chips
+        SizedBox(
+          height: 40,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            children: [
+              _payChip('Tous paiements', null, kSlate700),
+              _payChip('Payé', 'payé', kGreen),
+              _payChip('Partiel', 'partiel', const Color(0xFFF59E0B)),
+              _payChip('Non payé', 'non_payé', kRed),
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
         // List
         Expanded(
           child: jobsAsync.isLoading
@@ -68,10 +192,19 @@ class _JobsScreenState extends ConsumerState<JobsScreen> {
                   ? const Center(
                       child: Text('Aucun travail.', style: TextStyle(color: kSlate500)))
                   : ListView.separated(
+                      controller: _scrollCtrl,
                       padding: const EdgeInsets.fromLTRB(12, 0, 12, 80),
-                      itemCount: filtered.length,
+                      itemCount: visible.length + (hasMore ? 1 : 0),
                       separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemBuilder: (_, i) => _JobCard(job: filtered[i]),
+                      itemBuilder: (_, i) {
+                        if (i == visible.length) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                          );
+                        }
+                        return _JobCard(job: visible[i]);
+                      },
                     ),
         ),
       ]),
@@ -81,6 +214,29 @@ class _JobsScreenState extends ConsumerState<JobsScreen> {
         onPressed: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const JobEditorScreen()),
+        ),
+      ),
+    );
+  }
+
+  Widget _payChip(String label, String? value, Color color) {
+    final selected = _paymentFilter == value;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Text(label),
+        selected: selected,
+        onSelected: (_) =>
+            setState(() {
+              _paymentFilter = selected ? null : value;
+              _visibleCount = _kJobPageSize;
+            }),
+        selectedColor: color.withValues(alpha: 0.15),
+        checkmarkColor: color,
+        labelStyle: TextStyle(
+          fontSize: 12,
+          color: selected ? color : kSlate700,
+          fontWeight: selected ? FontWeight.w700 : FontWeight.normal,
         ),
       ),
     );
@@ -99,6 +255,31 @@ class _JobsScreenState extends ConsumerState<JobsScreen> {
 class _JobCard extends ConsumerWidget {
   final Job job;
   const _JobCard({required this.job});
+
+  String _clientPhone(WidgetRef ref) {
+    final clients = ref.read(clientsProvider).valueOrNull ?? [];
+    return clients
+        .where((c) => c.name == job.client)
+        .map((c) => c.phone)
+        .where((p) => p.isNotEmpty)
+        .firstOrNull ?? '';
+  }
+
+  Future<void> _call(BuildContext context, WidgetRef ref) async {
+    final phone = _clientPhone(ref);
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Numéro de téléphone non disponible.')));
+      return;
+    }
+    await callPhone(phone);
+  }
+
+  Future<void> _whatsapp(BuildContext context, WidgetRef ref) async {
+    final settings =
+        ref.read(settingsProvider).valueOrNull ?? const AppSettings();
+    await shareJobPdf(job, settings);
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -172,6 +353,15 @@ class _JobCard extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             Row(children: [
+              // Call
+            
+              // WhatsApp
+              IconButton(
+                icon:  Icon(Icons.phone, color: Color(0xFF25D366), size: 20),
+                tooltip: 'WhatsApp',
+                onPressed: () => _whatsapp(context, ref),
+              ),
+              const SizedBox(width: 4),
               Expanded(
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.receipt_outlined, size: 15),
@@ -192,7 +382,7 @@ class _JobCard extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
               IconButton(
                 icon: const Icon(Icons.delete_outline, color: kRed, size: 20),
                 onPressed: () async {
@@ -271,6 +461,7 @@ class _JobEditorScreenState extends ConsumerState<JobEditorScreen> {
   final _paidCtrl = TextEditingController(text: '0');
   final _notesCtrl = TextEditingController();
   String _status = 'Planifié';
+  TimeOfDay? _time;
   String? _editingId;
   bool _saving = false;
 
@@ -290,6 +481,12 @@ class _JobEditorScreenState extends ConsumerState<JobEditorScreen> {
       _paidCtrl.text = j.amountPaid.toString();
       _notesCtrl.text = j.notes;
       _status = j.status;
+      if (j.time.isNotEmpty) {
+        final p = j.time.split(':');
+        if (p.length == 2) {
+          _time = TimeOfDay(hour: int.parse(p[0]), minute: int.parse(p[1]));
+        }
+      }
     } else {
       _dateCtrl.text = todayIso();
     }
@@ -311,6 +508,10 @@ class _JobEditorScreenState extends ConsumerState<JobEditorScreen> {
       (double.tryParse(_priceCtrl.text) ?? 0) -
       (double.tryParse(_paidCtrl.text) ?? 0);
 
+  String get _timeStr => _time == null
+      ? ''
+      : '${_time!.hour.toString().padLeft(2, '0')}:${_time!.minute.toString().padLeft(2, '0')}';
+
   Future<void> _save() async {
     if (_clientCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -328,6 +529,7 @@ class _JobEditorScreenState extends ConsumerState<JobEditorScreen> {
         service: _serviceCtrl.text.trim(),
         price: double.tryParse(_priceCtrl.text) ?? 0,
         date: _dateCtrl.text.trim(),
+        time: _timeStr,
         status: _status,
         notes: _notesCtrl.text.trim(),
         amountPaid: double.tryParse(_paidCtrl.text) ?? 0,
@@ -445,6 +647,39 @@ class _JobEditorScreenState extends ConsumerState<JobEditorScreen> {
                     ),
                   ),
                 ]),
+                const SizedBox(height: 10),
+                // Time picker
+                GestureDetector(
+                  onTap: () async {
+                    final picked = await showTimePicker(
+                      context: context,
+                      initialTime: _time ?? TimeOfDay.now(),
+                    );
+                    if (picked != null) setState(() => _time = picked);
+                  },
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Heure (pour alarme)',
+                      prefixIcon: Icon(Icons.alarm_outlined, size: 18),
+                    ),
+                    child: Row(children: [
+                      Expanded(
+                        child: Text(
+                          _time == null ? 'Pas d\'alarme' : _timeStr,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: _time == null ? kSlate500 : kSlate900,
+                          ),
+                        ),
+                      ),
+                      if (_time != null)
+                        GestureDetector(
+                          onTap: () => setState(() => _time = null),
+                          child: const Icon(Icons.close, size: 16, color: kSlate500),
+                        ),
+                    ]),
+                  ),
+                ),
                 const SizedBox(height: 10),
                 Row(children: [
                   Expanded(
