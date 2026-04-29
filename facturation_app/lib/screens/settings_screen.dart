@@ -4,8 +4,11 @@ import 'package:image_picker/image_picker.dart';
 import '../models/app_settings.dart';
 import '../providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/marketplace_provider.dart';
+import '../providers/role_provider.dart';
 import '../services/logo_service.dart';
 import '../theme.dart';
+import 'worker_registration_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -168,6 +171,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 12),
+          // Worker profile shortcut — workers only
+          _WorkerProfileCard(),
+          const SizedBox(height: 12),
           // Enterprise info section
           Card(
             child: Padding(
@@ -229,4 +235,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           prefixIcon: Icon(icon, size: 18),
         ),
       );
+}
+
+class _WorkerProfileCard extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final role = ref.watch(userRoleProvider).value ?? 'worker';
+    if (role == 'client') return const SizedBox.shrink();
+
+    final profile = ref.watch(myWorkerProfileProvider).value;
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.engineering_outlined, color: kBlue),
+        title: Text(
+          profile != null ? 'Mon profil artisan' : 'Devenir artisan',
+          style: const TextStyle(fontWeight: FontWeight.w700, color: kSlate900),
+        ),
+        subtitle: Text(
+          profile != null
+              ? profile.services.join(' • ')
+              : 'Rejoignez le marketplace',
+          style: const TextStyle(fontSize: 12),
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => const WorkerRegistrationScreen()),
+        ),
+      ),
+    );
+  }
 }

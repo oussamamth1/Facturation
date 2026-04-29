@@ -6,6 +6,7 @@ import '../../providers/events_provider.dart';
 import '../../providers/products_provider.dart';
 import '../../providers/invoices_provider.dart';
 import '../../providers/jobs_provider.dart';
+import '../../providers/marketplace_provider.dart';
 import '../../utils/formatters.dart';
 import '../../theme.dart';
 import '../jobs_screen.dart';
@@ -22,6 +23,7 @@ class DashboardTab extends ConsumerWidget {
     final invoices = ref.watch(invoicesProvider);
     final jobs = ref.watch(jobsProvider);
     final events = ref.watch(eventsProvider);
+    final pendingInvitations = ref.watch(pendingIncomingCountProvider);
 
     final clientCount = clients.value?.length ?? 0;
     final productCount = products.value?.length ?? 0;
@@ -90,6 +92,70 @@ class DashboardTab extends ConsumerWidget {
             ),
           ],
         ),
+
+        // ── Pending invitations (workers) ──
+        if (pendingInvitations > 0) ...[
+          const SizedBox(height: 12),
+          InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => onNavigate(6), // Marketplace tab
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFEC4899), Color(0xFFF43F5E)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(Icons.assignment_ind_outlined,
+                        color: Colors.white, size: 28),
+                    Positioned(
+                      right: -6,
+                      top: -6,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '$pendingInvitations',
+                          style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFFEC4899)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$pendingInvitations invitation${pendingInvitations > 1 ? 's' : ''} en attente',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14),
+                      ),
+                      const Text('Appuyez pour voir et répondre',
+                          style:
+                              TextStyle(color: Colors.white70, fontSize: 11)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: Colors.white),
+              ]),
+            ),
+          ),
+        ],
 
         // ── Notes & events (today + yesterday) ──
         if (relevantEvents.isNotEmpty) ...[

@@ -3,15 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
+import 'providers/role_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/role_selection_screen.dart';
 import 'services/notification_service.dart';
+import 'services/push_notification_service.dart';
+import 'screens/notification_watcher.dart';
 import 'theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await NotificationService.init();
+  await PushNotificationService.init();
   runApp(const ProviderScope(child: FacturationApp()));
 }
 
@@ -34,10 +39,21 @@ class _AuthGate extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authStateProvider);
     return auth.when(
-      data: (user) => user != null ? const HomeScreen() : const LoginScreen(),
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (e, s) => const LoginScreen(),
+      error: (_, __) => const LoginScreen(),
+      data: (user) {
+        if (user == null) return const LoginScreen();
+        final role = ref.watch(userRoleProvider);
+        return role.when(
+          loading: () =>
+              const Scaffold(body: Center(child: CircularProgressIndicator())),
+          error: (_, __) => const RoleSelectionScreen(),
+          data: (r) => r != null
+              ? const NotificationWatcher(child: HomeScreen())
+              : const RoleSelectionScreen(),
+        );
+      },
     );
   }
 }

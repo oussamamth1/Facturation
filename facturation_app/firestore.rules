@@ -85,5 +85,97 @@ service cloud.firestore {
       allow read, write: if request.auth != null
                          && doc == "enterprise_" + request.auth.uid;
     }
+
+    // --- Job posts (client announcements board) ---
+    // Any authenticated user can read; only the post owner can update/delete.
+    match /job_posts/{postId} {
+      allow read:   if request.auth != null;
+      allow create: if request.auth != null
+                    && request.auth.uid == request.resource.data.clientId;
+      allow update: if request.auth != null
+                    && (
+                      request.auth.uid == resource.data.clientId
+                      || (
+                        // Non-owners may only increment commentCount — all core fields must stay unchanged
+                        request.resource.data.get('clientId', '')      == resource.data.get('clientId', '')
+                        && request.resource.data.get('clientName', '') == resource.data.get('clientName', '')
+                        && request.resource.data.get('status', '')     == resource.data.get('status', '')
+                        && request.resource.data.get('service', '')    == resource.data.get('service', '')
+                        && request.resource.data.get('description','') == resource.data.get('description','')
+                        && request.resource.data.get('location', '')   == resource.data.get('location', '')
+                        && request.resource.data.get('contactInfo','') == resource.data.get('contactInfo','')
+                      )
+                    );
+      allow delete: if request.auth != null
+                    && request.auth.uid == resource.data.clientId;
+
+      // Comments subcollection — any authenticated user can read/create;
+      // only the comment author can delete their own comment.
+      match /comments/{commentId} {
+        allow read:   if request.auth != null;
+        allow create: if request.auth != null
+                      && request.auth.uid == request.resource.data.authorId;
+        allow delete: if request.auth != null
+                      && request.auth.uid == resource.data.authorId;
+        allow update: if false;
+      }
+    }
+
+    // --- User profiles (role storage) ---
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // --- Workers (public marketplace) ---
+    // Any authenticated user can browse; only the owner can write.
+    match /workers/{doc} {
+      allow read:   if request.auth != null;
+      allow create: if request.auth != null
+                    && request.auth.uid == request.resource.data.userId;
+      allow update: if request.auth != null
+                    && request.auth.uid == resource.data.userId
+                    && request.auth.uid == request.resource.data.userId;
+      allow delete: if request.auth != null
+                    && request.auth.uid == resource.data.userId;
+    }
+
+    // --- Job requests ---
+    // Client creates; both client and worker can read; worker updates status;
+    // client can delete (cancel) a pending request.
+    match /job_requests/{doc} {
+      allow read:   if request.auth != null
+                    && (request.auth.uid == resource.data.clientId
+                        || request.auth.uid == resource.data.workerId);
+      allow create: if request.auth != null
+                    && request.auth.uid == request.resource.data.clientId;
+      allow update: if request.auth != null
+                    && (request.auth.uid == resource.data.workerId
+                        || request.auth.uid == resource.data.clientId);
+      allow delete: if request.auth != null
+                    && request.auth.uid == resource.data.clientId;
+    }
+
+    // --- Chats ---
+    // Only participants can read or update the conversation metadata.
+    match /chats/{chatId} {
+      allow read, update: if request.auth != null
+                          && request.auth.uid in resource.data.participants;
+      allow create:       if request.auth != null
+                          && request.auth.uid in request.resource.data.participants;
+
+      // Messages subcollection — participants only; messages are immutable once sent.
+      match /messages/{msgId} {
+        allow read:   if request.auth != null
+                      && request.auth.uid in
+                         get(/databases/$(database)/documents/chats/$(chatId))
+                           .data.participants;
+        allow create: if request.auth != null
+                      && request.auth.uid == request.resource.data.senderId
+                      && request.auth.uid in
+                         get(/databases/$(database)/documents/chats/$(chatId))
+                           .data.participants;
+        allow update, delete: if false;
+      }
+    }
   }
 }
